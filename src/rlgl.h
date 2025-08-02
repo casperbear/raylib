@@ -760,6 +760,7 @@ RLAPI void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, uns
 RLAPI const char *rlGetPixelFormatName(unsigned int format);              // Get name string for pixel format
 RLAPI void rlUnloadTexture(unsigned int id);                              // Unload texture from GPU memory
 RLAPI void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int *mipmaps); // Generate mipmap data for selected texture
+RLAPI void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired); // Generate mipmap data for selected texture
 RLAPI void *rlReadTexturePixels(unsigned int id, int width, int height, int format); // Read texture pixel data
 RLAPI unsigned char *rlReadScreenPixels(int width, int height);           // Read screen pixel data (color buffer)
 
@@ -3606,6 +3607,38 @@ void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int
         #define MAX(a,b) (((a)>(b))? (a):(b))
 
         *mipmaps = 1 + (int)floor(log(MAX(width, height))/log(2));
+        TRACELOG(RL_LOG_INFO, "TEXTURE: [ID %i] Mipmaps generated automatically, total: %i", id, *mipmaps);
+    }
+    else TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] Failed to generate mipmaps", id);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+#else
+    TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] GPU mipmap generation not supported", id);
+#endif
+}
+
+void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glBindTexture(GL_TEXTURE_2D, id);
+
+    // Check if texture is power-of-two (POT)
+    bool texIsPOT = false;
+
+    if (((width > 0) && ((width & (width - 1)) == 0)) &&
+        ((height > 0) && ((height & (height - 1)) == 0))) texIsPOT = true;
+
+    if ((texIsPOT) || (RLGL.ExtSupported.texNPOT))
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipmapsDesired - 1);
+
+        //glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE);   // Hint for mipmaps generation algorithm: GL_FASTEST, GL_NICEST, GL_DONT_CARE
+        glGenerateMipmap(GL_TEXTURE_2D);    // Generate mipmaps automatically
+
+#define MIN(a,b) (((a)<(b))? (a):(b))
+#define MAX(a,b) (((a)>(b))? (a):(b))
+
+        * mipmaps = mipmapsDesired;
         TRACELOG(RL_LOG_INFO, "TEXTURE: [ID %i] Mipmaps generated automatically, total: %i", id, *mipmaps);
     }
     else TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] Failed to generate mipmaps", id);

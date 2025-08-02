@@ -1429,6 +1429,7 @@ RLAPI void UpdateTextureRec(Texture2D texture, Rectangle rec, const void *pixels
 
 // Texture configuration functions
 RLAPI void GenTextureMipmaps(Texture2D *texture);                                                        // Generate GPU mipmaps for a texture
+RLAPI void GenTextureMipmapsEx(Texture2D* texture, int mipmapsDesired);                                    // Generate GPU mipmaps for a texture
 RLAPI void SetTextureFilter(Texture2D texture, int filter);                                              // Set texture scaling filter mode
 RLAPI void SetTextureWrap(Texture2D texture, int wrap);                                                  // Set texture wrapping mode
 

@@ -4386,6 +4386,13 @@ void GenTextureMipmaps(Texture2D *texture)
     rlGenTextureMipmaps(texture->id, texture->width, texture->height, texture->format, &texture->mipmaps);
 }
 
+void GenTextureMipmapsEx(Texture2D* texture, int mipmapsDesired)
+{
+    // NOTE: NPOT textures support check inside function
+    // On WebGL (OpenGL ES 2.0) NPOT textures support is limited
+    rlGenTextureMipmapsEx(texture->id, texture->width, texture->height, texture->format, &texture->mipmaps, mipmapsDesired);
+}
+
 // Set texture scaling filter mode
 void SetTextureFilter(Texture2D texture, int filter)
 {

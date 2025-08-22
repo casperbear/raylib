@@ -507,6 +507,7 @@ CORE = \
     core/core_3d_camera_free \
     core/core_3d_camera_mode \
     core/core_3d_camera_split_screen \
+    core/core_3d_fps_controller \
     core/core_3d_picking \
     core/core_automation_events \
     core/core_basic_screen_manager \
@@ -639,6 +640,7 @@ SHADERS = \
     shaders/shaders_mesh_instancing \
     shaders/shaders_model_shader \
     shaders/shaders_multi_sample2d \
+    shaders/shaders_normal_map \
     shaders/shaders_palette_switch \
     shaders/shaders_postprocessing \
     shaders/shaders_raymarching \

@@ -5,7 +5,7 @@
 *   FEATURES:
 *       - NO external dependencies, all required libraries included with raylib
 *       - Multiplatform: Windows, Linux, FreeBSD, OpenBSD, NetBSD, DragonFly,
-*                        MacOS, Haiku, Android, Raspberry Pi, DRM native, HTML5.
+*                        MacOS, Haiku, Android, Raspberry Pi, DRM native, HTML5
 *       - Written in plain C code (C99) in PascalCase/camelCase notation
 *       - Hardware accelerated with OpenGL (1.1, 2.1, 3.3, 4.3, ES2, ES3 - choose at compile)
 *       - Unique OpenGL abstraction layer (usable as standalone module): [rlgl]
@@ -36,7 +36,7 @@
 *       [rcore] msf_gif (Miles Fogle) for GIF recording
 *       [rcore] sinfl (Micha Mettke) for DEFLATE decompression algorithm
 *       [rcore] sdefl (Micha Mettke) for DEFLATE compression algorithm
-*       [rcore] rprand (Ramon Snatamaria) for pseudo-random numbers generation
+*       [rcore] rprand (Ramon Santamaria) for pseudo-random numbers generation
 *       [rtextures] qoi (Dominic Szablewski - https://phoboslab.org) for QOI image manage
 *       [rtextures] stb_image (Sean Barret) for images loading (BMP, TGA, PNG, JPEG, HDR...)
 *       [rtextures] stb_image_write (Sean Barret) for image writing (BMP, TGA, PNG, JPG)
@@ -1129,7 +1129,7 @@ RLAPI bool SaveFileText(const char *fileName, const char *text);  // Save text d
 // File system functions
 RLAPI bool FileExists(const char *fileName);                      // Check if file exists
 RLAPI bool DirectoryExists(const char *dirPath);                  // Check if a directory path exists
-RLAPI bool IsFileExtension(const char *fileName, const char *ext); // Check file extension (including point: .png, .wav)
+RLAPI bool IsFileExtension(const char *fileName, const char *ext); // Check file extension (recommended include point: .png, .wav)
 RLAPI int GetFileLength(const char *fileName);                    // Get file length in bytes (NOTE: GetFileSize() conflicts with windows.h)
 RLAPI const char *GetFileExtension(const char *fileName);         // Get pointer to extension for a filename string (includes dot: '.png')
 RLAPI const char *GetFileName(const char *filePath);              // Get pointer to filename for a path string

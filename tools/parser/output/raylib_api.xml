@@ -679,7 +679,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="584">
+    <Functions count="585">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -2161,6 +2161,10 @@
         </Function>
         <Function name="GenTextureMipmaps" retType="void" paramCount="1" desc="Generate GPU mipmaps for a texture">
             <Param type="Texture2D *" name="texture" desc="" />
+        </Function>
+        <Function name="GenTextureMipmapsEx" retType="void" paramCount="2" desc="Generate GPU mipmaps for a texture">
+            <Param type="Texture2D*" name="texture" desc="" />
+            <Param type="int" name="mipmapsDesired" desc="" />
         </Function>
         <Function name="SetTextureFilter" retType="void" paramCount="2" desc="Set texture scaling filter mode">
             <Param type="Texture2D" name="texture" desc="" />

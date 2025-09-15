@@ -301,7 +301,7 @@ void CameraMoveRight(Camera *camera, float distance, bool moveInWorldPlane)
 // Moves the camera position closer/farther to/from the camera target
 void CameraMoveToTarget(Camera *camera, float delta)
 {
-    if (delta == 0.0f) return; // to prevent moire (because of slightly updating camera->position without reason)
+    if (delta == 0.0f) return; // to prevent slightly updating camera->position without reason (still doesn't help against moire)
     
     float distance = Vector3Distance(camera->position, camera->target);
 

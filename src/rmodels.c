@@ -1435,7 +1435,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
     #define GL_COLOR_ARRAY          0x8076
     #define GL_TEXTURE_COORD_ARRAY  0x8078
 
-    rlEnableTexture(material.maps[MATERIAL_MAP_DIFFUSE].texture.id);
+    if (mesh.texcoords && material.maps[MATERIAL_MAP_DIFFUSE].texture.id > 0) rlEnableTexture(material.maps[MATERIAL_MAP_DIFFUSE].texture.id);
 
     if (mesh.animVertices) rlEnableStatePointer(GL_VERTEX_ARRAY, mesh.animVertices);
     else rlEnableStatePointer(GL_VERTEX_ARRAY, mesh.vertices);
@@ -2352,8 +2352,6 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
         Mesh mesh = model.meshes[m];
         Vector3 animVertex = { 0 };
         Vector3 animNormal = { 0 };
-        Matrix boneMatrix = { 0 };
-        Matrix InverseBoneMatrix = { 0 };
         int boneId = 0;
         int boneCounter = 0;
         float boneWeight = 0.0;
@@ -2361,50 +2359,47 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
         const int vValues = mesh.vertexCount*3;
 
         // Skip if missing bone data, causes segfault without on some models
-		if ((mesh.boneWeights == NULL) || (mesh.boneIds == NULL)) continue;
+        if ((mesh.boneWeights == NULL) || (mesh.boneIds == NULL)) continue;
 
-		// Iterates over 4 bones per vertex
-		for (int j = 0; j < 4; j++, boneCounter++)
-		{
-            boneWeight = mesh.boneWeights[boneCounter];
-            boneId = mesh.boneIds[boneCounter];
+        for (int vCounter = 0; vCounter < vValues; vCounter += 3)
+        {
+            mesh.animVertices[vCounter] = 0;
+            mesh.animVertices[vCounter + 1] = 0;
+            mesh.animVertices[vCounter + 2] = 0;
+            if (mesh.animNormals != NULL)
+            {
+                mesh.animNormals[vCounter] = 0;
+                mesh.animNormals[vCounter + 1] = 0;
+                mesh.animNormals[vCounter + 2] = 0;
+            }
 
-            // Early stop when no transformation will be applied
-            if (boneWeight == 0.0f) continue;
+            // Iterates over 4 bones per vertex
+            for (int j = 0; j < 4; j++, boneCounter++)
+            {
+                boneWeight = mesh.boneWeights[boneCounter];
+                boneId = mesh.boneIds[boneCounter];
 
-            boneMatrix = model.meshes[m].boneMatrices[boneId];
-            InverseBoneMatrix = MatrixTranspose(MatrixInvert(boneMatrix));
+                // Early stop when no transformation will be applied
+                if (boneWeight == 0.0f) continue;
+                animVertex = (Vector3){ mesh.vertices[vCounter], mesh.vertices[vCounter + 1], mesh.vertices[vCounter + 2] };
+                animVertex = Vector3Transform(animVertex,model.meshes[m].boneMatrices[boneId]);
+                mesh.animVertices[vCounter] += animVertex.x*boneWeight;
+                mesh.animVertices[vCounter+1] += animVertex.y*boneWeight;
+                mesh.animVertices[vCounter+2] += animVertex.z*boneWeight;
+                updated = true;
 
-			for (int vCounter = 0; vCounter < vValues; vCounter += 3)
-			{
-				mesh.animVertices[vCounter] = 0;
-				mesh.animVertices[vCounter + 1] = 0;
-				mesh.animVertices[vCounter + 2] = 0;
-				if (mesh.animNormals != NULL)
-				{
-					mesh.animNormals[vCounter] = 0;
-					mesh.animNormals[vCounter + 1] = 0;
-					mesh.animNormals[vCounter + 2] = 0;
-				}
-				animVertex = (Vector3){ mesh.vertices[vCounter], mesh.vertices[vCounter + 1], mesh.vertices[vCounter + 2] };
-				animVertex = Vector3Transform(animVertex, boneMatrix);
-				mesh.animVertices[vCounter] += animVertex.x*boneWeight;
-				mesh.animVertices[vCounter+1] += animVertex.y*boneWeight;
-				mesh.animVertices[vCounter+2] += animVertex.z*boneWeight;
-				updated = true;
-
-				// Normals processing
-				// NOTE: We use meshes.baseNormals (default normal) to calculate meshes.normals (animated normals)
-				if ((mesh.normals != NULL) && (mesh.animNormals != NULL))
-				{
-					animNormal = (Vector3){ mesh.normals[vCounter], mesh.normals[vCounter + 1], mesh.normals[vCounter + 2] };
-					animNormal = Vector3Transform(animNormal, InverseBoneMatrix);
-					mesh.animNormals[vCounter] += animNormal.x*boneWeight;
-					mesh.animNormals[vCounter + 1] += animNormal.y*boneWeight;
-					mesh.animNormals[vCounter + 2] += animNormal.z*boneWeight;
-				}
-			}
-		}
+                // Normals processing
+                // NOTE: We use meshes.baseNormals (default normal) to calculate meshes.normals (animated normals)
+                if ((mesh.normals != NULL) && (mesh.animNormals != NULL ))
+                {
+                    animNormal = (Vector3){ mesh.normals[vCounter], mesh.normals[vCounter + 1], mesh.normals[vCounter + 2] };
+                    animNormal = Vector3Transform(animNormal, MatrixTranspose(MatrixInvert(model.meshes[m].boneMatrices[boneId])));
+                    mesh.animNormals[vCounter] += animNormal.x*boneWeight;
+                    mesh.animNormals[vCounter + 1] += animNormal.y*boneWeight;
+                    mesh.animNormals[vCounter + 2] += animNormal.z*boneWeight;
+                }
+            }
+        }
 
         if (updated)
         {
@@ -4434,10 +4429,12 @@ static Model LoadOBJ(const char *fileName)
 
         model.meshes[i].vertices = (float *)MemAlloc(sizeof(float)*vertexCount*3);
         model.meshes[i].normals = (float *)MemAlloc(sizeof(float)*vertexCount*3);
-        model.meshes[i].texcoords = (float *)MemAlloc(sizeof(float)*vertexCount*2);
     #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+        model.meshes[i].texcoords = (float *)MemAlloc(sizeof(float)*vertexCount*2);
         model.meshes[i].colors = (unsigned char *)MemAlloc(sizeof(unsigned char)*vertexCount*4);
     #else
+        if (objAttributes.texcoords != NULL && objAttributes.num_texcoords > 0) model.meshes[i].texcoords = (float *)MemAlloc(sizeof(float)*vertexCount*2);
+        else model.meshes[i].texcoords = NULL;
         model.meshes[i].colors = NULL;
     #endif
     }
@@ -4493,15 +4490,10 @@ static Model LoadOBJ(const char *fileName)
 
             for (int i = 0; i < 3; i++) model.meshes[meshIndex].vertices[localMeshVertexCount*3 + i] = objAttributes.vertices[vertIndex*3 + i];
 
-            if ((objAttributes.texcoords != NULL) && (texcordIndex != TINYOBJ_INVALID_INDEX) && (texcordIndex >= 0))
+            if ((objAttributes.texcoords != NULL) && (texcordIndex != TINYOBJ_INVALID_INDEX) && (texcordIndex >= 0) && (model.meshes[meshIndex].texcoords))
             {
                 for (int i = 0; i < 2; i++) model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + i] = objAttributes.texcoords[texcordIndex*2 + i];
                 model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 1] = 1.0f - model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 1];
-            }
-            else
-            {
-                model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 0] = 0.0f;
-                model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 1] = 0.0f;
             }
 
             if ((objAttributes.normals != NULL) && (normalIndex != TINYOBJ_INVALID_INDEX) && (normalIndex >= 0))

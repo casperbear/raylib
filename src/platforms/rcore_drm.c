@@ -824,15 +824,6 @@ void SwapScreenBuffer(void)
         return;
     }
 
-    // Get the software rendered color buffer
-    int bufferWidth = 0, bufferHeight = 0;
-    void *colorBuffer = swGetColorBuffer(&bufferWidth, &bufferHeight);
-    if (!colorBuffer)
-    {
-        TRACELOG(LOG_ERROR, "DISPLAY: Failed to get software color buffer");
-        return;
-    }
-
     // Retrieving the dimensions of the display mode used
     drmModeModeInfo *mode = &platform.connector->modes[platform.modeIndex];
     uint32_t width = mode->hdisplay;
@@ -864,7 +855,7 @@ void SwapScreenBuffer(void)
     // Create framebuffer with the correct format
     uint32_t fb = 0;
     result = drmModeAddFB(platform.fd, width, height, depth, bpp, creq.pitch, creq.handle, &fb);
-    if (result != 0) 
+    if (result != 0)
     {
         TRACELOG(LOG_ERROR, "DISPLAY: drmModeAddFB() failed with result: %d (%s)", result, strerror(errno));
         struct drm_mode_destroy_dumb dreq = { 0 };
@@ -900,16 +891,8 @@ void SwapScreenBuffer(void)
     }
 
     // Copy the software rendered buffer to the dumb buffer with scaling if needed
-    if (bufferWidth == width && bufferHeight == height)
-    {
-        // Direct copy if sizes match
-        swCopyFramebuffer(0, 0, bufferWidth, bufferHeight, SW_RGBA, SW_UNSIGNED_BYTE, dumbBuffer);
-    }
-    else
-    {
-        // Scale the software buffer to match the display mode
-        swBlitFramebuffer(0, 0, width, height, 0, 0, bufferWidth, bufferHeight, SW_RGBA, SW_UNSIGNED_BYTE, dumbBuffer);
-    }
+    // NOTE: RLSW will make a simple copy if the dimensions match
+    swBlitFramebuffer(0, 0, width, height, 0, 0, width, height, SW_RGBA, SW_UNSIGNED_BYTE, dumbBuffer);
 
     // Unmap the buffer
     munmap(dumbBuffer, creq.size);
@@ -974,12 +957,12 @@ void SwapScreenBuffer(void)
 
     // Set CRTC with better error handling
     result = drmModeSetCrtc(platform.fd, crtcId, fb, 0, 0, &platform.connector->connector_id, 1, mode);
-    if (result != 0) 
+    if (result != 0)
     {
         TRACELOG(LOG_ERROR, "DISPLAY: drmModeSetCrtc() failed with result: %d (%s)", result, strerror(errno));
         TRACELOG(LOG_ERROR, "DISPLAY: CRTC ID: %u, FB ID: %u, Connector ID: %u", crtcId, fb, platform.connector->connector_id);
         TRACELOG(LOG_ERROR, "DISPLAY: Mode: %dx%d@%d", mode->hdisplay, mode->vdisplay, mode->vrefresh);
-        
+
         drmModeRmFB(platform.fd, fb);
         struct drm_mode_destroy_dumb dreq = {0};
         dreq.handle = creq.handle;
@@ -1165,7 +1148,7 @@ int InitPlatform(void)
     // Initialize graphic device: display/window and graphic context
     //----------------------------------------------------------------------------
     CORE.Window.fullscreen = true;
-    CORE.Window.flags |= FLAG_FULLSCREEN_MODE;
+    FLAG_SET(CORE.Window.flags, FLAG_FULLSCREEN_MODE);
 
 #if defined(DEFAULT_GRAPHIC_DEVICE_DRM)
     platform.fd = open(DEFAULT_GRAPHIC_DEVICE_DRM, O_RDWR);
@@ -1229,7 +1212,7 @@ int InitPlatform(void)
         }
 
         TRACELOG(LOG_TRACE, "DISPLAY: Connector %i modes detected: %i", i, con->count_modes);
-        TRACELOG(LOG_TRACE, "DISPLAY: Connector %i status: %s", i, 
+        TRACELOG(LOG_TRACE, "DISPLAY: Connector %i status: %s", i,
                  (con->connection == DRM_MODE_CONNECTED) ? "CONNECTED" :
                  (con->connection == DRM_MODE_DISCONNECTED) ? "DISCONNECTED" :
                  (con->connection == DRM_MODE_UNKNOWNCONNECTION) ? "UNKNOWN" : "OTHER");
@@ -1314,7 +1297,7 @@ int InitPlatform(void)
         CORE.Window.screen.height = CORE.Window.display.height;
     }
 
-    const bool allowInterlaced = CORE.Window.flags & FLAG_INTERLACED_HINT;
+    const bool allowInterlaced = FLAG_IS_SET(CORE.Window.flags, FLAG_INTERLACED_HINT);
     const int fps = (CORE.Time.target > 0) ? (1.0/CORE.Time.target) : 60;
 
     // Try to find an exact matching mode
@@ -1345,7 +1328,7 @@ int InitPlatform(void)
 
     TRACELOG(LOG_INFO, "DISPLAY: Selected DRM connector mode %s (%ux%u%c@%u)", platform.connector->modes[platform.modeIndex].name,
         platform.connector->modes[platform.modeIndex].hdisplay, platform.connector->modes[platform.modeIndex].vdisplay,
-        (platform.connector->modes[platform.modeIndex].flags & DRM_MODE_FLAG_INTERLACE) ? 'i' : 'p',
+        FLAG_IS_SET(platform.connector->modes[platform.modeIndex].flags, DRM_MODE_FLAG_INTERLACE)? 'i' : 'p',
         platform.connector->modes[platform.modeIndex].vrefresh);
 
     drmModeFreeEncoder(enc);
@@ -1357,10 +1340,10 @@ int InitPlatform(void)
         platform.modeIndex = 0;
         CORE.Window.display.width = platform.connector->modes[0].hdisplay;
         CORE.Window.display.height = platform.connector->modes[0].vdisplay;
-        
-        TRACELOG(LOG_INFO, "DISPLAY: Selected DRM connector mode %s (%ux%u%c@%u) for software rendering", 
+
+        TRACELOG(LOG_INFO, "DISPLAY: Selected DRM connector mode %s (%ux%u%c@%u) for software rendering",
                  platform.connector->modes[0].name,
-                 platform.connector->modes[0].hdisplay, 
+                 platform.connector->modes[0].hdisplay,
                  platform.connector->modes[0].vdisplay,
                  (platform.connector->modes[0].flags & DRM_MODE_FLAG_INTERLACE) ? 'i' : 'p',
                  platform.connector->modes[0].vrefresh);
@@ -1401,7 +1384,7 @@ int InitPlatform(void)
 
     EGLint samples = 0;
     EGLint sampleBuffer = 0;
-    if (CORE.Window.flags & FLAG_MSAA_4X_HINT)
+    if (FLAG_IS_SET(CORE.Window.flags, FLAG_MSAA_4X_HINT))
     {
         samples = 4;
         sampleBuffer = 1;
@@ -1578,17 +1561,17 @@ int InitPlatform(void)
     TRACELOG(LOG_INFO, "    > Viewport offsets: %i, %i", CORE.Window.renderOffset.x, CORE.Window.renderOffset.y);
 #endif
 
-    if ((CORE.Window.flags & FLAG_WINDOW_MINIMIZED) > 0) MinimizeWindow();
+    if (FLAG_IS_SET(CORE.Window.flags, FLAG_WINDOW_MINIMIZED)) MinimizeWindow();
 
     // If graphic device is no properly initialized, we end program
     if (!CORE.Window.ready) { TRACELOG(LOG_FATAL, "PLATFORM: Failed to initialize graphic device"); return -1; }
     else SetWindowPosition(GetMonitorWidth(GetCurrentMonitor())/2 - CORE.Window.screen.width/2, GetMonitorHeight(GetCurrentMonitor())/2 - CORE.Window.screen.height/2);
 
     // Set some default window flags
-    CORE.Window.flags &= ~FLAG_WINDOW_HIDDEN;       // false
-    CORE.Window.flags &= ~FLAG_WINDOW_MINIMIZED;    // false
-    CORE.Window.flags |= FLAG_WINDOW_MAXIMIZED;     // true
-    CORE.Window.flags &= ~FLAG_WINDOW_UNFOCUSED;    // false
+    FLAG_CLEAR(CORE.Window.flags, FLAG_WINDOW_HIDDEN);       // false
+    FLAG_CLEAR(CORE.Window.flags, FLAG_WINDOW_MINIMIZED);    // false
+    FLAG_SET(CORE.Window.flags, FLAG_WINDOW_MAXIMIZED);      // true
+    FLAG_CLEAR(CORE.Window.flags, FLAG_WINDOW_UNFOCUSED);    // false
 
     //----------------------------------------------------------------------------
     // Initialize timing system
@@ -1737,8 +1720,8 @@ static void InitKeyboard(void)
 
     // New terminal settings for keyboard: turn off buffering (non-canonical mode), echo and key processing
     // NOTE: ISIG controls if ^C and ^Z generate break signals or not
-    keyboardNewSettings.c_lflag &= ~(ICANON | ECHO | ISIG);
-    //keyboardNewSettings.c_iflag &= ~(ISTRIP | INLCR | ICRNL | IGNCR | IXON | IXOFF);
+    FLAG_CLEAR(keyboardNewSettings.c_lflag, ICANON | ECHO | ISIG);
+    //FLAG_CLEAR(keyboardNewSettings.c_iflag, ISTRIP | INLCR | ICRNL | IGNCR | IXON | IXOFF);
     keyboardNewSettings.c_cc[VMIN] = 1;
     keyboardNewSettings.c_cc[VTIME] = 0;
 
@@ -2419,7 +2402,7 @@ static int FindMatchingConnectorMode(const drmModeConnector *connector, const dr
     for (size_t i = 0; i < connector->count_modes; i++)
     {
         TRACELOG(LOG_TRACE, "DISPLAY: DRM mode: %d %ux%u@%u %s", i, connector->modes[i].hdisplay, connector->modes[i].vdisplay,
-            connector->modes[i].vrefresh, (connector->modes[i].flags & DRM_MODE_FLAG_INTERLACE)? "interlaced" : "progressive");
+            connector->modes[i].vrefresh, (FLAG_IS_SET(connector->modes[i].flags, DRM_MODE_FLAG_INTERLACE) > 0)? "interlaced" : "progressive");
 
         if (0 == BINCMP(&platform.crtc->mode, &platform.connector->modes[i])) return i;
     }
@@ -2440,9 +2423,9 @@ static int FindExactConnectorMode(const drmModeConnector *connector, uint width,
     {
         const drmModeModeInfo *const mode = &platform.connector->modes[i];
 
-        TRACELOG(LOG_TRACE, "DISPLAY: DRM Mode %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh, (mode->flags & DRM_MODE_FLAG_INTERLACE)? "interlaced" : "progressive");
+        TRACELOG(LOG_TRACE, "DISPLAY: DRM Mode %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh, (FLAG_IS_SET(mode->flags, DRM_MODE_FLAG_INTERLACE) > 0)? "interlaced" : "progressive");
 
-        if ((mode->flags & DRM_MODE_FLAG_INTERLACE) && !allowInterlaced) continue;
+        if ((FLAG_IS_SET(mode->flags, DRM_MODE_FLAG_INTERLACE) > 0) && !allowInterlaced) continue;
 
         if ((mode->hdisplay == width) && (mode->vdisplay == height) && (mode->vrefresh == fps)) return i;
     }
@@ -2466,7 +2449,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
         const drmModeModeInfo *const mode = &platform.connector->modes[i];
 
         TRACELOG(LOG_TRACE, "DISPLAY: DRM mode: %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh,
-            (mode->flags & DRM_MODE_FLAG_INTERLACE)? "interlaced" : "progressive");
+            (FLAG_IS_SET(mode->flags, DRM_MODE_FLAG_INTERLACE) > 0)? "interlaced" : "progressive");
 
         if ((mode->hdisplay < width) || (mode->vdisplay < height))
         {
@@ -2474,7 +2457,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
             continue;
         }
 
-        if ((mode->flags & DRM_MODE_FLAG_INTERLACE) && !allowInterlaced)
+        if ((FLAG_IS_SET(mode->flags, DRM_MODE_FLAG_INTERLACE) > 0) && !allowInterlaced)
         {
             TRACELOG(LOG_TRACE, "DISPLAY: DRM shouldn't choose an interlaced mode");
             continue;

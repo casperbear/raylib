@@ -52,9 +52,6 @@
 *       #define SUPPORT_SCREEN_CAPTURE
 *           Allow automatic screen capture of current screen pressing F12, defined in KeyCallback()
 *
-*       #define SUPPORT_GIF_RECORDING
-*           Allow automatic gif recording of current screen pressing CTRL+F12, defined in KeyCallback()
-*
 *       #define SUPPORT_COMPRESSION_API
 *           Support CompressData() and DecompressData() functions, those functions use zlib implementation
 *           provided by stb_image and stb_image_write libraries, so, those libraries must be enabled on textures module
@@ -132,15 +129,6 @@
 #if defined(SUPPORT_CAMERA_SYSTEM)
     #define RCAMERA_IMPLEMENTATION
     #include "rcamera.h"            // Camera system functionality
-#endif
-
-#if defined(SUPPORT_GIF_RECORDING)
-    #define MSF_GIF_MALLOC(contextPointer, newSize) RL_MALLOC(newSize)
-    #define MSF_GIF_REALLOC(contextPointer, oldMemory, oldSize, newSize) RL_REALLOC(oldMemory, newSize)
-    #define MSF_GIF_FREE(contextPointer, oldMemory, oldSize) RL_FREE(oldMemory)
-
-    #define MSF_GIF_IMPL
-    #include "external/msf_gif.h"   // GIF recording functionality
 #endif
 
 #if defined(SUPPORT_COMPRESSION_API)
@@ -400,12 +388,6 @@ bool isGpuReady = false;
 
 #if defined(SUPPORT_SCREEN_CAPTURE)
 static int screenshotCounter = 0;           // Screenshots counter
-#endif
-
-#if defined(SUPPORT_GIF_RECORDING)
-static unsigned int gifFrameCounter = 0;    // GIF frames counter
-static bool gifRecording = false;           // GIF recording state
-static MsfGifState gifState = { 0 };        // MSGIF context state
 #endif
 
 #if defined(SUPPORT_AUTOMATION_EVENTS)
@@ -758,15 +740,6 @@ void InitWindow(int width, int height, const char *title)
 // Close window and unload OpenGL context
 void CloseWindow(void)
 {
-#if defined(SUPPORT_GIF_RECORDING)
-    if (gifRecording)
-    {
-        MsfGifResult result = msf_gif_end(&gifState);
-        msf_gif_free(result);
-        gifRecording = false;
-    }
-#endif
-
 #if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_DEFAULT_FONT)
     UnloadFontDefault();        // WARNING: Module required: rtext
 #endif
@@ -929,47 +902,6 @@ void EndDrawing(void)
 {
     rlDrawRenderBatchActive();      // Update and draw internal render batch
 
-#if defined(SUPPORT_GIF_RECORDING)
-    // Draw record indicator
-    if (gifRecording)
-    {
-        #ifndef GIF_RECORD_FRAMERATE
-        #define GIF_RECORD_FRAMERATE    10
-        #endif
-        gifFrameCounter += (unsigned int)(GetFrameTime()*1000);
-
-        // NOTE: We record one gif frame depending on the desired gif framerate
-        if (gifFrameCounter > 1000/GIF_RECORD_FRAMERATE)
-        {
-            // Get image data for the current frame (from backbuffer)
-            // NOTE: This process is quite slow... :(
-            Vector2 scale = GetWindowScaleDPI();
-            unsigned char *screenData = rlReadScreenPixels((int)((float)CORE.Window.render.width*scale.x), (int)((float)CORE.Window.render.height*scale.y));
-
-            #ifndef GIF_RECORD_BITRATE
-            #define GIF_RECORD_BITRATE 16
-            #endif
-
-            // Add the frame to the gif recording, given how many frames have passed in centiseconds
-            msf_gif_frame(&gifState, screenData, gifFrameCounter/10, GIF_RECORD_BITRATE, (int)((float)CORE.Window.render.width*scale.x)*4);
-            gifFrameCounter -= 1000/GIF_RECORD_FRAMERATE;
-
-            RL_FREE(screenData);    // Free image data
-        }
-
-    #if defined(SUPPORT_MODULE_RSHAPES) && defined(SUPPORT_MODULE_RTEXT)
-        // Display the recording indicator every half-second
-        if ((int)(GetTime()/0.5)%2 == 1)
-        {
-            DrawCircle(30, CORE.Window.screen.height - 20, 10, MAROON);                 // WARNING: Module required: rshapes
-            DrawText("GIF RECORDING", 50, CORE.Window.screen.height - 25, 10, RED);     // WARNING: Module required: rtext
-        }
-    #endif
-
-        rlDrawRenderBatchActive();  // Update and draw internal render batch
-    }
-#endif
-
 #if defined(SUPPORT_AUTOMATION_EVENTS)
     if (automationEventRecording) RecordAutomationEvent();    // Event recording
 #endif
@@ -1002,38 +934,8 @@ void EndDrawing(void)
 #if defined(SUPPORT_SCREEN_CAPTURE)
     if (IsKeyPressed(KEY_F12))
     {
-#if defined(SUPPORT_GIF_RECORDING)
-        if (IsKeyDown(KEY_LEFT_CONTROL))
-        {
-            if (gifRecording)
-            {
-                gifRecording = false;
-
-                MsfGifResult result = msf_gif_end(&gifState);
-
-                SaveFileData(TextFormat("%s/screenrec%03i.gif", CORE.Storage.basePath, screenshotCounter), result.data, (unsigned int)result.dataSize);
-                msf_gif_free(result);
-
-                TRACELOG(LOG_INFO, "SYSTEM: Finish animated GIF recording");
-            }
-            else
-            {
-                gifRecording = true;
-                gifFrameCounter = 0;
-
-                Vector2 scale = GetWindowScaleDPI();
-                msf_gif_begin(&gifState, (int)((float)CORE.Window.render.width*scale.x), (int)((float)CORE.Window.render.height*scale.y));
-                screenshotCounter++;
-
-                TRACELOG(LOG_INFO, "SYSTEM: Start animated GIF recording: %s", TextFormat("screenrec%03i.gif", screenshotCounter));
-            }
-        }
-        else
-#endif  // SUPPORT_GIF_RECORDING
-        {
-            TakeScreenshot(TextFormat("screenshot%03i.png", screenshotCounter));
-            screenshotCounter++;
-        }
+        TakeScreenshot(TextFormat("screenshot%03i.png", screenshotCounter));
+        screenshotCounter++;
     }
 #endif  // SUPPORT_SCREEN_CAPTURE
 
@@ -2992,7 +2894,7 @@ unsigned int *ComputeMD5(unsigned char *data, int dataSize)
 // NOTE: Returns a static int[5] array (20 bytes)
 unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
 {
-    #define ROTATE_LEFT(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
+    #define SHA1_ROTATE_LEFT(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
     static unsigned int hash[5] = { 0 };  // Hash to be returned
 
@@ -3035,7 +2937,7 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
         }
 
         // Message schedule: extend the sixteen 32-bit words into eighty 32-bit words:
-        for (int i = 16; i < 80; i++) w[i] = ROTATE_LEFT(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1);
+        for (int i = 16; i < 80; i++) w[i] = SHA1_ROTATE_LEFT(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1);
 
         // Initialize hash value for this chunk
         unsigned int a = hash[0];
@@ -3070,10 +2972,10 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
                 k = 0xCA62C1D6;
             }
 
-            unsigned int temp = ROTATE_LEFT(a, 5) + f + e + k + w[i];
+            unsigned int temp = SHA1_ROTATE_LEFT(a, 5) + f + e + k + w[i];
             e = d;
             d = c;
-            c = ROTATE_LEFT(b, 30);
+            c = SHA1_ROTATE_LEFT(b, 30);
             b = a;
             a = temp;
         }
@@ -3095,9 +2997,9 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
 // NOTE: Returns a static int[8] array (32 bytes)
 unsigned int *ComputeSHA256(unsigned char *data, int dataSize)
 {
-    #define ROTATE_RIGHT(x, c) ((x >> c) | (x << ((sizeof(unsigned int) * 8) - c)))
-    #define SHA256_A0(x) (ROTATE_RIGHT(x, 7) ^ ROTATE_RIGHT(x, 18) ^ (x >> 3))
-    #define SHA256_A1(x) (ROTATE_RIGHT(x, 17) ^ ROTATE_RIGHT(x, 19) ^ (x >> 10))
+    #define SHA256_ROTATE_RIGHT(x, c) ((x >> c) | (x << ((sizeof(unsigned int)*8) - c)))
+    #define SHA256_A0(x) (SHA256_ROTATE_RIGHT(x, 7) ^ SHA256_ROTATE_RIGHT(x, 18) ^ (x >> 3))
+    #define SHA256_A1(x) (SHA256_ROTATE_RIGHT(x, 17) ^ SHA256_ROTATE_RIGHT(x, 19) ^ (x >> 10))
 
     static const unsigned int k[64] = {
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -3118,7 +3020,7 @@ unsigned int *ComputeSHA256(unsigned char *data, int dataSize)
         0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     };
 
-    static unsigned int hash[8];
+    static unsigned int hash[8] = { 0 };
     hash[0] = 0x6A09e667;
     hash[1] = 0xbb67ae85;
     hash[2] = 0x3c6ef372;
@@ -3131,12 +3033,14 @@ unsigned int *ComputeSHA256(unsigned char *data, int dataSize)
     const unsigned long long int bitLen = ((unsigned long long int)dataSize)*8;
     unsigned long long int paddedSize = dataSize + sizeof(dataSize);
     paddedSize += (64 - (paddedSize%64));
-    unsigned char *buffer = RL_CALLOC(paddedSize, sizeof(unsigned char));
+    unsigned char *buffer = (unsigned char *)RL_CALLOC(paddedSize, sizeof(unsigned char));
 
     memcpy(buffer, data, dataSize);
     buffer[dataSize] = 0x80;
     for (int i = 1; i <= sizeof(bitLen); i++)
+    {
         buffer[(paddedSize - sizeof(bitLen)) + (i - 1)] = (bitLen >> (8*(sizeof(bitLen) - i))) & 0xFF;
+    }
 
     for (unsigned long long int blockN = 0; blockN < paddedSize/64; blockN++)
     {
@@ -3150,23 +3054,22 @@ unsigned int *ComputeSHA256(unsigned char *data, int dataSize)
         unsigned int h = hash[7];
 
         unsigned char *block = buffer + (blockN*64);
-        unsigned int w[64];
+        unsigned int w[64] = { 0 };
         for (int i = 0; i < 16; i++)
         {
-            w[i] =
-                ((unsigned int)block[i*4 + 0] << 24) |
-                ((unsigned int)block[i*4 + 1] << 16) |
-                ((unsigned int)block[i*4 + 2] << 8)  |
-                ((unsigned int)block[i*4 + 3]);
+            w[i] = ((unsigned int)block[i*4 + 0] << 24) |
+                   ((unsigned int)block[i*4 + 1] << 16) |
+                   ((unsigned int)block[i*4 + 2] << 8)  |
+                   ((unsigned int)block[i*4 + 3]);
         }
         for (int t = 16; t < 64; t++) w[t] = SHA256_A1(w[t - 2]) + w[t - 7] + SHA256_A0(w[t - 15]) + w[t - 16];
 
         for (unsigned long long int t = 0; t < 64; t++)
         {
-            unsigned int e1 = (ROTATE_RIGHT(e, 6) ^ ROTATE_RIGHT(e, 11) ^ ROTATE_RIGHT(e, 25));
+            unsigned int e1 = (SHA256_ROTATE_RIGHT(e, 6) ^ SHA256_ROTATE_RIGHT(e, 11) ^ SHA256_ROTATE_RIGHT(e, 25));
             unsigned int ch = ((e & f) ^ (~e & g));
             unsigned int t1 = (h + e1 + ch + k[t] + w[t]);
-            unsigned int e0 = (ROTATE_RIGHT(a, 2) ^ ROTATE_RIGHT(a, 13) ^ ROTATE_RIGHT(a, 22));
+            unsigned int e0 = (SHA256_ROTATE_RIGHT(a, 2) ^ SHA256_ROTATE_RIGHT(a, 13) ^ SHA256_ROTATE_RIGHT(a, 22));
             unsigned int maj = ((a & b) ^ (a & c) ^ (b & c));
             unsigned int t2 = e0 + maj;
 
@@ -3189,7 +3092,9 @@ unsigned int *ComputeSHA256(unsigned char *data, int dataSize)
         hash[6] += g;
         hash[7] += h;
     }
+
     RL_FREE(buffer);
+
     return hash;
 }
 

@@ -6,12 +6,12 @@
 *
 *   Example originally created with raylib 5.5, last time updated with raylib 5.5
 *
-*   Example contributed by Agnis Aldins (@nezvers) and reviewed by Ramon Santamaria (@raysan5)
+*   Example contributed by Agnis Aldiņš (@nezvers) and reviewed by Ramon Santamaria (@raysan5)
 *
 *   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
 *   BSD-like license that allows static linking with closed source software
 *
-*   Copyright (c) 2025 Agnis Aldins (@nezvers)
+*   Copyright (c) 2025 Agnis Aldiņš (@nezvers)
 *
 ********************************************************************************************/
 
@@ -20,7 +20,7 @@
 // For itteration purposes and teaching example
 #define RESOLUTION_COUNT 4
 
-enum ViewportType 
+enum ViewportType
 {
     // Only upscale, useful for pixel art
     KEEP_ASPECT_INTEGER,
@@ -92,7 +92,7 @@ int main(void)
     enum ViewportType viewportType = KEEP_ASPECT_INTEGER;
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - Viewport Scaling");
+    InitWindow(screenWidth, screenHeight, "raylib [core] example - viewport scaling");
     ResizeRenderSize(viewportType, &screenWidth, &screenHeight, gameWidth, gameHeight, &sourceRect, &destRect, &target);
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
@@ -113,7 +113,7 @@ int main(void)
         }
         Vector2 mousePosition = GetMousePosition();
         bool mousePressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-        
+
         // Check buttons and rescale
         if (CheckCollisionPointRec(mousePosition, decreaseResolutionButton) && mousePressed){
             resolutionIndex = (resolutionIndex + RESOLUTION_COUNT - 1) % RESOLUTION_COUNT;

@@ -220,7 +220,7 @@ static const short linuxToRaylibMap[KEYMAP_SIZE] = {
     248, 0,   0,   0,   0,   0,   0,   0,
 
     // Gamepads are mapped according to:
-    // https://www.kernel.org/doc/html/next/input/gamepad.html
+    // Ref: https://www.kernel.org/doc/html/next/input/gamepad.html
     // Those mappings are standardized, but that doesn't mean people follow
     // the standards, so this is more of an approximation
     [BTN_DPAD_UP] = GAMEPAD_BUTTON_LEFT_FACE_UP,
@@ -637,7 +637,7 @@ static uint32_t GetOrCreateFbForBo(struct gbm_bo *bo)
 }
 
 // Renders a blank frame to allocate initial buffers
-// TODO: WARNING: Platform layers do not include OpenGL code!
+// TODO: WARNING: Platform backend should not include OpenGL code
 void RenderBlankFrame()
 {
     glClearColor(0, 0, 0, 1);
@@ -1213,9 +1213,9 @@ int InitPlatform(void)
 
         TRACELOG(LOG_TRACE, "DISPLAY: Connector %i modes detected: %i", i, con->count_modes);
         TRACELOG(LOG_TRACE, "DISPLAY: Connector %i status: %s", i,
-                 (con->connection == DRM_MODE_CONNECTED) ? "CONNECTED" :
-                 (con->connection == DRM_MODE_DISCONNECTED) ? "DISCONNECTED" :
-                 (con->connection == DRM_MODE_UNKNOWNCONNECTION) ? "UNKNOWN" : "OTHER");
+                 (con->connection == DRM_MODE_CONNECTED)? "CONNECTED" :
+                 (con->connection == DRM_MODE_DISCONNECTED)? "DISCONNECTED" :
+                 (con->connection == DRM_MODE_UNKNOWNCONNECTION)? "UNKNOWN" : "OTHER");
 
         // In certain cases the status of the conneciton is reported as UKNOWN, but it is still connected
         // This might be a hardware or software limitation like on Raspberry Pi Zero with composite output
@@ -1298,7 +1298,7 @@ int InitPlatform(void)
     }
 
     const bool allowInterlaced = FLAG_IS_SET(CORE.Window.flags, FLAG_INTERLACED_HINT);
-    const int fps = (CORE.Time.target > 0) ? (1.0/CORE.Time.target) : 60;
+    const int fps = (CORE.Time.target > 0)? (1.0/CORE.Time.target) : 60;
 
     // Try to find an exact matching mode
     platform.modeIndex = FindExactConnectorMode(platform.connector, CORE.Window.screen.width, CORE.Window.screen.height, fps, allowInterlaced);
@@ -1345,7 +1345,7 @@ int InitPlatform(void)
                  platform.connector->modes[0].name,
                  platform.connector->modes[0].hdisplay,
                  platform.connector->modes[0].vdisplay,
-                 (platform.connector->modes[0].flags & DRM_MODE_FLAG_INTERLACE) ? 'i' : 'p',
+                 (platform.connector->modes[0].flags & DRM_MODE_FLAG_INTERLACE)? 'i' : 'p',
                  platform.connector->modes[0].vrefresh);
     }
     else
@@ -1456,7 +1456,7 @@ int InitPlatform(void)
 
     // find the EGL config that matches the previously setup GBM format
     int found = 0;
-    for (EGLint i = 0; i < matchingNumConfigs; ++i)
+    for (EGLint i = 0; i < matchingNumConfigs; i++)
     {
         EGLint id = 0;
         if (!eglGetConfigAttrib(platform.device, configs[i], EGL_NATIVE_VISUAL_ID, &id))
@@ -1740,10 +1740,10 @@ static void InitKeyboard(void)
     else
     {
         // Reconfigure keyboard mode to get:
-        //    - scancodes (K_RAW)
-        //    - keycodes (K_MEDIUMRAW)
-        //    - ASCII chars (K_XLATE)
-        //    - UNICODE chars (K_UNICODE)
+        // - scancodes (K_RAW)
+        // - keycodes (K_MEDIUMRAW)
+        // - ASCII chars (K_XLATE)
+        // - UNICODE chars (K_UNICODE)
         ioctl(STDIN_FILENO, KDSKBMODE, K_XLATE);  // ASCII chars
     }
 
@@ -1865,7 +1865,7 @@ static void ProcessKeyboard(void)
 }
 #endif  // SUPPORT_SSH_KEYBOARD_RPI
 
-// Initialise user input from evdev(/dev/input/event<N>)
+// Initialize user input from evdev(/dev/input/event<N>)
 // this means mouse, keyboard or gamepad devices
 static void InitEvdevInput(void)
 {
@@ -1873,12 +1873,12 @@ static void InitEvdevInput(void)
     DIR *directory = NULL;
     struct dirent *entity = NULL;
 
-    // Initialise keyboard file descriptor
+    // Initialize keyboard file descriptor
     platform.keyboardFd = -1;
     platform.mouseFd = -1;
 
     // Reset variables
-    for (int i = 0; i < MAX_TOUCH_POINTS; ++i)
+    for (int i = 0; i < MAX_TOUCH_POINTS; i++)
     {
         CORE.Input.Touch.position[i].x = -1;
         CORE.Input.Touch.position[i].y = -1;
@@ -2463,7 +2463,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
             continue;
         }
 
-        const int unusedPixels = (mode->hdisplay - width) * (mode->vdisplay - height);
+        const int unusedPixels = (mode->hdisplay - width)*(mode->vdisplay - height);
         const int fpsDiff = mode->vrefresh - fps;
 
         if ((unusedPixels < minUnusedPixels) ||

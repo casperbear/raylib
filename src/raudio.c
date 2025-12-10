@@ -593,7 +593,7 @@ AudioBuffer *LoadAudioBuffer(ma_format format, ma_uint32 channels, ma_uint32 sam
     // Init audio buffer values
     audioBuffer->volume = 1.0f;
     audioBuffer->pitch = 1.0f;
-    audioBuffer->pan = 0.0f; // Center 
+    audioBuffer->pan = 0.0f; // Center
 
     audioBuffer->callback = NULL;
     audioBuffer->processor = NULL;
@@ -1040,8 +1040,8 @@ void UnloadSoundAlias(Sound alias)
 }
 
 // Update sound buffer with new data
-// NOTE 1: data format must match sound.stream.sampleSize
-// NOTE 2: frameCount must not exceed sound.frameCount
+// PARAMS: [data], format must match sound.stream.sampleSize, default 32 bit float - stereo
+// PARAMS: [frameCount] must not exceed sound.frameCount
 void UpdateSound(Sound sound, const void *data, int frameCount)
 {
     if (sound.stream.buffer != NULL)
@@ -2092,9 +2092,7 @@ float GetMusicTimePlayed(Music music)
             int framesInFirstBuffer = music.stream.buffer->isSubBufferProcessed[0]? 0 : subBufferSize;
             int framesInSecondBuffer = music.stream.buffer->isSubBufferProcessed[1]? 0 : subBufferSize;
             int framesInBuffers = framesInFirstBuffer + framesInSecondBuffer;
-            if ((unsigned int)framesInBuffers > music.frameCount) {
-                if (!music.looping) framesInBuffers = music.frameCount;
-            }
+            if (((unsigned int)framesInBuffers > music.frameCount) && !music.looping) framesInBuffers = music.frameCount;
             int framesSentToMix = music.stream.buffer->frameCursorPos%subBufferSize;
             int framesPlayed = (framesProcessed - framesInBuffers + framesSentToMix)%(int)music.frameCount;
             if (framesPlayed < 0) framesPlayed += music.frameCount;
@@ -2125,7 +2123,7 @@ AudioStream LoadAudioStream(unsigned int sampleRate, unsigned int sampleSize, un
     if (deviceBitsPerSample > 4)  deviceBitsPerSample = 4;
     deviceBitsPerSample *= AUDIO.System.device.playback.channels;
 
-    unsigned int subBufferSize = (AUDIO.Buffer.defaultSize == 0) ? (AUDIO.System.device.sampleRate/30*deviceBitsPerSample) : AUDIO.Buffer.defaultSize;
+    unsigned int subBufferSize = (AUDIO.Buffer.defaultSize == 0)? (AUDIO.System.device.sampleRate/30*deviceBitsPerSample) : AUDIO.Buffer.defaultSize;
 
     if (subBufferSize < periodSize) subBufferSize = periodSize;
 

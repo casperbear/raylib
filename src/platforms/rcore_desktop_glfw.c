@@ -78,27 +78,26 @@
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
     #include <sys/time.h>               // Required for: timespec, nanosleep(), select() - POSIX
 
-#if defined(_GLFW_X11) || defined(_GLFW_WAYLAND)
+    #if defined(_GLFW_X11) || defined(_GLFW_WAYLAND)
                                         // Set appropriate expose macros based on available backends
-    #if defined(_GLFW_X11)
-        #define GLFW_EXPOSE_NATIVE_X11
-            #define Font X11Font        // Hack to fix 'Font' name collision
+        #if defined(_GLFW_X11)
+            #define GLFW_EXPOSE_NATIVE_X11
+                #define Font X11Font    // Hack to fix 'Font' name collision
                                         // The definition and references to the X11 Font type will be replaced by 'X11Font'
                                         // Works as long as the current file consistently references any X11 Font as X11Font
                                         // Since it is never referenced (as of writing), this does not pose an issue
-    #endif
+        #endif
 
-    #if defined(_GLFW_WAYLAND)
-        #define GLFW_EXPOSE_NATIVE_WAYLAND
-    #endif
+        #if defined(_GLFW_WAYLAND)
+            #define GLFW_EXPOSE_NATIVE_WAYLAND
+        #endif
 
-    #include "GLFW/glfw3native.h"       // Include native header only once, regardless of how many backends are defined
+        #include "GLFW/glfw3native.h"   // Include native header only once, regardless of how many backends are defined
                                         // Required for: glfwGetX11Window() and glfwGetWaylandWindow()
-
-    #if defined(_GLFW_X11)              // Clean up X11-specific hacks
-        #undef Font                     // Revert hack and allow normal raylib Font usage
+        #if defined(_GLFW_X11)          // Clean up X11-specific hacks
+            #undef Font                 // Revert hack and allow normal raylib Font usage
+        #endif
     #endif
-#endif
 #endif
 #if defined(__APPLE__)
     #include <unistd.h>                 // Required for: usleep()
@@ -131,7 +130,7 @@ int InitPlatform(void);          // Initialize platform (graphics, inputs and mo
 void ClosePlatform(void);        // Close platform
 
 // Error callback event
-static void ErrorCallback(int error, const char *description);                             // GLFW3 Error Callback, runs on GLFW3 error
+static void ErrorCallback(int error, const char *description);                          // GLFW3 Error Callback, runs on GLFW3 error
 
 // Window callbacks events
 static void WindowSizeCallback(GLFWwindow *window, int width, int height);              // GLFW3 WindowSize Callback, runs when window is resized
@@ -266,8 +265,15 @@ void ToggleBorderlessWindowed(void)
                 const int monitorHeight = mode->height;
 
                 // Set screen position and size
-                glfwSetWindowPos(platform.handle, monitorPosX, monitorPosY);
-                glfwSetWindowSize(platform.handle, monitorWidth, monitorHeight);
+                glfwSetWindowMonitor(
+                    platform.handle,
+                    monitors[monitor],
+                    monitorPosX,
+                    monitorPosY,
+                    monitorWidth,
+                    monitorHeight,
+                    mode->refreshRate
+                );
 
                 // Refocus window
                 glfwFocusWindow(platform.handle);
@@ -282,8 +288,15 @@ void ToggleBorderlessWindowed(void)
 
                 // Return previous screen size and position
                 // NOTE: The order matters here, it must set size first, then set position, otherwise the screen will be positioned incorrectly
-                glfwSetWindowSize(platform.handle,  CORE.Window.previousScreen.width, CORE.Window.previousScreen.height);
-                glfwSetWindowPos(platform.handle, CORE.Window.previousPosition.x, CORE.Window.previousPosition.y);
+                glfwSetWindowMonitor(
+                    platform.handle,
+                    NULL,
+                    CORE.Window.previousPosition.x,
+                    CORE.Window.previousPosition.y,
+                    CORE.Window.previousScreen.width,
+                    CORE.Window.previousScreen.height,
+            	    mode->refreshRate
+            	);
 
                 // Refocus window
                 glfwFocusWindow(platform.handle);
@@ -1220,9 +1233,9 @@ void PollInputEvents(void)
 
     // Map touch position to mouse position for convenience
     // WARNING: If the target desktop device supports touch screen, this behaviour should be reviewed!
-    // TODO: GLFW does not support multi-touch input just yet
-    // https://www.codeproject.com/Articles/668404/Programming-for-Multi-Touch
-    // https://docs.microsoft.com/en-us/windows/win32/wintouch/getting-started-with-multi-touch-messages
+    // TODO: GLFW does not support multi-touch input yet
+    // Ref: https://www.codeproject.com/Articles/668404/Programming-for-Multi-Touch
+    // Ref: https://docs.microsoft.com/en-us/windows/win32/wintouch/getting-started-with-multi-touch-messages
     CORE.Input.Touch.position[0] = CORE.Input.Mouse.currentPosition;
 
     // Check if gamepads are ready
@@ -1334,7 +1347,7 @@ void PollInputEvents(void)
 // Function wrappers around RL_*alloc macros, used by glfwInitAllocator() inside of InitPlatform()
 // We need to provide these because GLFWallocator expects function pointers with specific signatures
 // Similar wrappers exist in utils.c but we cannot reuse them here due to declaration mismatch
-// https://www.glfw.org/docs/latest/intro_guide.html#init_allocator
+// Ref: https://www.glfw.org/docs/latest/intro_guide.html#init_allocator
 static void *AllocateWrapper(size_t size, void *user)
 {
     (void)user;
@@ -1592,8 +1605,8 @@ int InitPlatform(void)
         bool requestWindowedFullscreen = (CORE.Window.screen.height == 0) && (CORE.Window.screen.width == 0);
 
         // Default to at least one pixel in size, as creation with a zero dimension is not allowed
-        int creationWidth = CORE.Window.screen.width != 0 ? CORE.Window.screen.width : 1;
-        int creationHeight = CORE.Window.screen.height != 0 ? CORE.Window.screen.height : 1;
+        int creationWidth = (CORE.Window.screen.width != 0)? CORE.Window.screen.width : 1;
+        int creationHeight = (CORE.Window.screen.height != 0)? CORE.Window.screen.height : 1;
 
         platform.handle = glfwCreateWindow(creationWidth, creationHeight, (CORE.Window.title != 0)? CORE.Window.title : " ", NULL, NULL);
         if (!platform.handle)

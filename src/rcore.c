@@ -28,9 +28,11 @@
 *           - Android (ARM, ARM64)
 *       > PLATFORM_DESKTOP_WIN32 (Native Win32):
 *           - Windows (Win32, Win64)
+*       > PLATFORM_MEMORY
+*           - Memory framebuffer output, using software renderer, no OS required
 *   CONFIGURATION:
 *       #define SUPPORT_DEFAULT_FONT (default)
-*           Default font is loaded on window initialization to be available for the user to render simple text.
+*           Default font is loaded on window initialization to be available for the user to render simple text
 *           NOTE: If enabled, uses external module functions to load default raylib font (module: text)
 *
 *       #define SUPPORT_CAMERA_SYSTEM
@@ -41,7 +43,7 @@
 *           Gestures module is included (rgestures.h) to support gestures detection: tap, hold, swipe, drag
 *
 *       #define SUPPORT_MOUSE_GESTURES
-*           Mouse gestures are directly mapped like touches and processed by gestures system.
+*           Mouse gestures are directly mapped like touches and processed by gestures system
 *
 *       #define SUPPORT_BUSY_WAIT_LOOP
 *           Use busy wait loop for timing sync, if not defined, a high-resolution timer is setup and used
@@ -92,12 +94,12 @@
 //----------------------------------------------------------------------------------
 #if (defined(__linux__) || defined(PLATFORM_WEB) || defined(PLATFORM_WEB_RGFW)) && (_XOPEN_SOURCE < 500)
     #undef _XOPEN_SOURCE
-    #define _XOPEN_SOURCE 500 // Required for: readlink if compiled with c99 without gnu ext.
+    #define _XOPEN_SOURCE 500       // Required for: readlink if compiled with c99 without GNU extensions
 #endif
 
 #if (defined(__linux__) || defined(PLATFORM_WEB) || defined(PLATFORM_WEB_RGFW)) && (_POSIX_C_SOURCE < 199309L)
     #undef _POSIX_C_SOURCE
-    #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without gnu ext.
+    #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without GNU extensions
 #endif
 
 #include "raylib.h"                 // Declares module functions
@@ -115,6 +117,9 @@
 #include <time.h>                   // Required for: time() [Used in InitTimer()]
 #include <math.h>                   // Required for: tan() [Used in BeginMode3D()], atan2f() [Used in LoadVrStereoConfig()]
 
+#if defined(PLATFORM_MEMORY)
+    #define SW_GL_FRAMEBUFFER_COPY_BGRA false
+#endif
 #define RLGL_IMPLEMENTATION
 #include "rlgl.h"                   // OpenGL abstraction layer to OpenGL 1.1, 3.3+ or ES2
 
@@ -155,18 +160,18 @@
         #define MAX_PATH 260
     #endif
 
-struct HINSTANCE__;
-#if defined(__cplusplus)
-extern "C" {
-#endif
-__declspec(dllimport) unsigned long __stdcall GetModuleFileNameA(struct HINSTANCE__ *hModule, char *lpFilename, unsigned long nSize);
-__declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(struct HINSTANCE__ *hModule, wchar_t *lpFilename, unsigned long nSize);
-__declspec(dllimport) int __stdcall WideCharToMultiByte(unsigned int cp, unsigned long flags, const wchar_t *widestr, int cchwide, char *str, int cbmb, const char *defchar, int *used_default);
-__declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int uPeriod);
-__declspec(dllimport) unsigned int __stdcall timeEndPeriod(unsigned int uPeriod);
-#if defined(__cplusplus)
-}
-#endif
+    struct HINSTANCE__;
+    #if defined(__cplusplus)
+    extern "C" {
+    #endif
+    __declspec(dllimport) unsigned long __stdcall GetModuleFileNameA(struct HINSTANCE__ *hModule, char *lpFilename, unsigned long nSize);
+    __declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(struct HINSTANCE__ *hModule, wchar_t *lpFilename, unsigned long nSize);
+    __declspec(dllimport) int __stdcall WideCharToMultiByte(unsigned int cp, unsigned long flags, const wchar_t *widestr, int cchwide, char *str, int cbmb, const char *defchar, int *used_default);
+    __declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int uPeriod);
+    __declspec(dllimport) unsigned int __stdcall timeEndPeriod(unsigned int uPeriod);
+    #if defined(__cplusplus)
+    }
+    #endif
 #elif defined(__linux__)
     #include <unistd.h>
 #elif defined(__FreeBSD__)
@@ -314,7 +319,8 @@ typedef struct CoreData {
             char currentKeyState[MAX_KEYBOARD_KEYS];        // Registers current frame key state
             char previousKeyState[MAX_KEYBOARD_KEYS];       // Registers previous frame key state
 
-            // NOTE: Since key press logic involves comparing prev vs cur key state, we need to handle key repeats specially
+            // NOTE: Since key press logic involves comparing previous vs currrent key state, 
+            // key repeats needs to be handled specially
             char keyRepeatInFrame[MAX_KEYBOARD_KEYS];       // Registers key repeats for current frame
 
             int keyPressedQueue[MAX_KEY_PRESSED_QUEUE];     // Input keys queue
@@ -423,7 +429,7 @@ typedef enum AutomationEventType {
 } AutomationEventType;
 
 // Event type to config events flags
-// TODO: Not used at the moment
+// WARNING: Not used at the moment
 typedef enum {
     EVENT_INPUT_KEYBOARD    = 0,
     EVENT_INPUT_MOUSE       = 1,
@@ -530,12 +536,6 @@ const char *TextFormat(const char *text, ...); // Formatting of text with variab
     #if (!defined(SUPPORT_FILEFORMAT_PNG) || !defined(SUPPORT_FILEFORMAT_JPG)) && !defined(_WIN32)
         #pragma message ("WARNING: Getting image from the clipboard might not work without SUPPORT_FILEFORMAT_PNG or SUPPORT_FILEFORMAT_JPG")
     #endif
-
-    // Not needed because 'rtexture.c' will automatically defined STBI_REQUIRED when any SUPPORT_FILEFORMAT_* is defined
-    // #if !defined(STBI_REQUIRED)
-    //     #pragma message ("WARNING: "STBI_REQUIRED is not defined, that means we can't load images from clipbard"
-    // #endif
-
 #endif // SUPPORT_CLIPBOARD_IMAGE
 
 // Include platform-specific submodules
@@ -553,6 +553,8 @@ const char *TextFormat(const char *text, ...); // Formatting of text with variab
     #include "platforms/rcore_drm.c"
 #elif defined(PLATFORM_ANDROID)
     #include "platforms/rcore_android.c"
+#elif defined(PLATFORM_MEMORY)
+    #include "platforms/rcore_memory.c"
 #else
     // TODO: Include your custom platform backend!
     // i.e software rendering backend or console backend!
@@ -627,6 +629,8 @@ void InitWindow(int width, int height, const char *title)
     TRACELOG(LOG_INFO, "Platform backend: NATIVE DRM");
 #elif defined(PLATFORM_ANDROID)
     TRACELOG(LOG_INFO, "Platform backend: ANDROID");
+#elif defined(PLATFORM_MEMORY)
+    TRACELOG(LOG_INFO, "Platform backend: MEMORY (No OS)");
 #else
     // TODO: Include your custom platform backend!
     // i.e software rendering backend or console backend!
@@ -1267,14 +1271,14 @@ Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode)
     {
         // After custom shader loading, we TRY to set default location names
         // Default shader attribute locations have been binded before linking:
-        //          vertex position location    = 0
-        //          vertex texcoord location    = 1
-        //          vertex normal location      = 2
-        //          vertex color location       = 3
-        //          vertex tangent location     = 4
-        //          vertex texcoord2 location   = 5
-        //          vertex boneIds location     = 6
-        //          vertex boneWeights location = 7
+        //  - vertex position location    = 0
+        //  - vertex texcoord location    = 1
+        //  - vertex normal location      = 2
+        //  - vertex color location       = 3
+        //  - vertex tangent location     = 4
+        //  - vertex texcoord2 location   = 5
+        //  - vertex boneIds location     = 6
+        //  - vertex boneWeights location = 7
 
         // NOTE: If any location is not found, loc point becomes -1
 
@@ -1543,8 +1547,6 @@ Vector2 GetWorldToScreenEx(Vector3 position, Camera camera, int width, int heigh
     // Calculate view matrix from camera look at (and transpose it)
     Matrix matView = MatrixLookAt(camera.position, camera.target, camera.up);
 
-    // TODO: Why not use Vector3Transform(Vector3 v, Matrix mat)?
-
     // Convert world position vector to quaternion
     Quaternion worldPos = { position.x, position.y, position.z, 1.0f };
 
@@ -1763,7 +1765,7 @@ int *LoadRandomSequence(unsigned int count, int min, int max)
 
     for (int i = 0; i < (int)count;)
     {
-        value = (rand()%(abs(max - min) + 1) + min);
+        value = GetRandomValue(min, max);
         dupValue = false;
 
         for (int j = 0; j < i; j++)
@@ -2241,13 +2243,15 @@ const char *GetApplicationDirectory(void)
 
 #if defined(_WIN32)
     int len = 0;
-#if defined(UNICODE)
+    
+    #if defined(UNICODE)
     unsigned short widePath[MAX_PATH];
     len = GetModuleFileNameW(NULL, (wchar_t *)widePath, MAX_PATH);
     len = WideCharToMultiByte(0, 0, (wchar_t *)widePath, len, appDir, MAX_PATH, NULL, NULL);
-#else
+    #else
     len = GetModuleFileNameA(NULL, appDir, MAX_PATH);
-#endif
+    #endif
+    
     if (len > 0)
     {
         for (int i = len; i >= 0; --i)
@@ -2264,8 +2268,9 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '\\';
     }
-
+    
 #elif defined(__linux__)
+
     unsigned int size = sizeof(appDir);
     ssize_t len = readlink("/proc/self/exe", appDir, size);
 
@@ -2285,7 +2290,9 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '/';
     }
+    
 #elif defined(__APPLE__)
+
     uint32_t size = sizeof(appDir);
 
     if (_NSGetExecutablePath(appDir, &size) == 0)
@@ -2305,7 +2312,9 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '/';
     }
+    
 #elif defined(__FreeBSD__)
+
     size_t size = sizeof(appDir);
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
 
@@ -2326,7 +2335,6 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '/';
     }
-
 #endif
 
     return appDir;
@@ -2483,8 +2491,6 @@ bool IsFileNameValid(const char *fileName)
 
             // Check non-glyph characters
             if ((unsigned char)fileName[i] < 32) { valid = false; break; }
-
-            // TODO: Check trailing periods/spaces?
 
             // Check if filename is not all periods
             if (fileName[i] != '.') allPeriods = false;
@@ -2920,8 +2926,15 @@ unsigned int *ComputeSHA1(unsigned char *data, int dataSize)
     memcpy(msg, data, dataSize);
     msg[dataSize] = 128; // Write the '1' bit
 
-    unsigned int bitsLen = 8*dataSize;
-    msg[newDataSize-1] = bitsLen;
+    unsigned long long bitsLen = 8ULL * dataSize;
+    msg[newDataSize-1] = (unsigned char)(bitsLen);
+    msg[newDataSize-2] = (unsigned char)(bitsLen >> 8);
+    msg[newDataSize-3] = (unsigned char)(bitsLen >> 16);
+    msg[newDataSize-4] = (unsigned char)(bitsLen >> 24);
+    msg[newDataSize-5] = (unsigned char)(bitsLen >> 32);
+    msg[newDataSize-6] = (unsigned char)(bitsLen >> 40);
+    msg[newDataSize-7] = (unsigned char)(bitsLen >> 48);
+    msg[newDataSize-8] = (unsigned char)(bitsLen >> 56);
 
     // Process the message in successive 512-bit chunks
     for (int offset = 0; offset < newDataSize; offset += (512/8))
@@ -3210,7 +3223,7 @@ bool ExportAutomationEventList(AutomationEventList list, const char *fileName)
     */
 
     // Export events as text
-    // TODO: Save to memory buffer and SaveFileText()
+    // NOTE: Save to memory buffer and SaveFileText()
     char *txtData = (char *)RL_CALLOC(256*list.count + 2048, sizeof(char)); // 256 characters per line plus some header
 
     int byteCount = 0;
@@ -3279,7 +3292,7 @@ void PlayAutomationEvent(AutomationEvent event)
 #if defined(SUPPORT_AUTOMATION_EVENTS)
     // WARNING: When should event be played? After/before/replace PollInputEvents()? -> Up to the user!
 
-    if (!automationEventRecording)      // TODO: Allow recording events while playing?
+    if (!automationEventRecording)
     {
         switch (event.type)
         {
@@ -3716,7 +3729,6 @@ int GetTouchY(void)
 }
 
 // Get touch position XY for a touch point index (relative to screen size)
-// TODO: Touch position should be scaled depending on display size and render size
 Vector2 GetTouchPosition(int index)
 {
     Vector2 position = { -1.0f, -1.0f };
@@ -3759,20 +3771,20 @@ void InitTimer(void)
     // High resolutions can also prevent the CPU power management system from entering power-saving modes
     // Setting a higher resolution does not improve the accuracy of the high-resolution performance counter
 #if defined(_WIN32) && defined(SUPPORT_WINMM_HIGHRES_TIMER) && !defined(SUPPORT_BUSY_WAIT_LOOP) && !defined(PLATFORM_DESKTOP_SDL)
-    timeBeginPeriod(1);                 // Setup high-resolution timer to 1ms (granularity of 1-2 ms)
+    timeBeginPeriod(1); // Setup high-resolution timer to 1ms (granularity of 1-2 ms)
 #endif
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__EMSCRIPTEN__)
     struct timespec now = { 0 };
 
-    if (clock_gettime(CLOCK_MONOTONIC, &now) == 0)  // Success
+    if (clock_gettime(CLOCK_MONOTONIC, &now) == 0) // Success
     {
         CORE.Time.base = (unsigned long long int)now.tv_sec*1000000000LLU + (unsigned long long int)now.tv_nsec;
     }
     else TRACELOG(LOG_WARNING, "TIMER: Hi-resolution timer not available");
 #endif
 
-    CORE.Time.previous = GetTime();     // Get time as double
+    CORE.Time.previous = GetTime(); // Get time as double
 }
 
 // Set viewport for a provided width and height
@@ -3898,6 +3910,7 @@ static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const 
             if ((strcmp(dp->d_name, ".") != 0) &&
                 (strcmp(dp->d_name, "..") != 0))
             {
+                // Construct new path from our base path
             #if defined(_WIN32)
                 int pathLength = snprintf(path, MAX_FILEPATH_LENGTH - 1, "%s\\%s", basePath, dp->d_name);
             #else
@@ -4015,13 +4028,11 @@ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *fi
 
 #if defined(SUPPORT_AUTOMATION_EVENTS)
 // Automation event recording
+// Checking events in current frame and save them into currentEventList
 // NOTE: Recording is by default done at EndDrawing(), before PollInputEvents()
 static void RecordAutomationEvent(void)
 {
-    // Checking events in current frame and save them into currentEventList
-    // TODO: How important is the current frame? Could it be modified?
-
-    if (currentEventList->count == currentEventList->capacity) return;    // Security check
+    if (currentEventList->count == currentEventList->capacity) return;
 
     // Keyboard input events recording
     //-------------------------------------------------------------------------------------
@@ -4304,12 +4315,12 @@ const char *TextFormat(const char *text, ...)
     int requiredByteCount = vsnprintf(currentBuffer, MAX_TEXT_BUFFER_LENGTH, text, args);
     va_end(args);
 
-    // If requiredByteCount is larger than the MAX_TEXT_BUFFER_LENGTH, then overflow occured
+    // If requiredByteCount is larger than the MAX_TEXT_BUFFER_LENGTH, then overflow occurred
     if (requiredByteCount >= MAX_TEXT_BUFFER_LENGTH)
     {
         // Inserting "..." at the end of the string to mark as truncated
         char *truncBuffer = buffers[index] + MAX_TEXT_BUFFER_LENGTH - 4; // Adding 4 bytes = "...\0"
-        sprintf(truncBuffer, "...");
+        snprintf(truncBuffer, 4, "...");
     }
 
     index += 1;     // Move to next buffer for next function call

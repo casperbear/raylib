@@ -560,6 +560,7 @@ CORE = \
     core/core_world_screen
 
 SHAPES = \
+    shapes/shapes_ball_physics \
     shapes/shapes_basic_shapes \
     shapes/shapes_bouncing_ball \
     shapes/shapes_bullet_hell \
@@ -582,6 +583,7 @@ SHAPES = \
     shapes/shapes_math_angle_rotation \
     shapes/shapes_math_sine_cosine \
     shapes/shapes_mouse_trail \
+    shapes/shapes_penrose_tile \
     shapes/shapes_pie_chart \
     shapes/shapes_rectangle_advanced \
     shapes/shapes_rectangle_scaling \
@@ -601,6 +603,7 @@ TEXTURES = \
     textures/textures_background_scrolling \
     textures/textures_blend_modes \
     textures/textures_bunnymark \
+    textures/textures_cellular_automata \
     textures/textures_fog_of_war \
     textures/textures_gif_player \
     textures/textures_image_channel \
@@ -639,6 +642,7 @@ TEXT = \
     text/text_input_box \
     text/text_rectangle_bounds \
     text/text_sprite_fonts \
+    text/text_strings_management \
     text/text_unicode_emojis \
     text/text_unicode_ranges \
     text/text_words_alignment \
@@ -684,6 +688,7 @@ SHADERS = \
     shaders/shaders_depth_writing \
     shaders/shaders_eratosthenes_sieve \
     shaders/shaders_fog_rendering \
+    shaders/shaders_game_of_life \
     shaders/shaders_hot_reloading \
     shaders/shaders_hybrid_rendering \
     shaders/shaders_julia_set \
@@ -708,7 +713,6 @@ SHADERS = \
     shaders/shaders_vertex_displacement
 
 AUDIO = \
-    audio/audio_fft_spectrum_visualizer \
     audio/audio_mixed_processor \
     audio/audio_module_playing \
     audio/audio_music_stream \
@@ -716,6 +720,7 @@ AUDIO = \
     audio/audio_sound_loading \
     audio/audio_sound_multi \
     audio/audio_sound_positioning \
+    audio/audio_spectrum_visualizer \
     audio/audio_stream_effects
 
 OTHERS = \

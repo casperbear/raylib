@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   raylib [audio] example - fft spectrum visualizer
+*   raylib [audio] example - spectrum visualizer
 *
 *   Example complexity rating: [★★★☆] 3/4
 *
@@ -78,7 +78,7 @@ int main(void)
     const int screenWidth = 800;
     const int screenHeight = 450;
 
-    InitWindow(screenWidth, screenHeight, "raylib [audio] example - fft spectrum visualizer");
+    InitWindow(screenWidth, screenHeight, "raylib [audio] example - spectrum visualizer");
 
     Image fftImage = GenImageColor(BUFFER_SIZE, TEXTURE_HEIGHT, WHITE);
     Texture2D fftTexture = LoadTextureFromImage(fftImage);
@@ -148,7 +148,7 @@ int main(void)
         CaptureFrame(&fft, audioSamples);
         RenderFrame(&fft, &fftImage);
         UpdateTexture(fftTexture, fftImage.data);
-        //------------------------------------------------------------------------------
+        //----------------------------------------------------------------------------------
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -269,7 +269,7 @@ static void CaptureFrame(FFTData *fftData, const float *audioSamples)
 
     fftData->lastFftTime = GetTime();
     memcpy(fftData->fftHistory[fftData->historyPos], smoothedSpectrum, sizeof(smoothedSpectrum));
-    fftData->historyPos = (fftData->historyPos + 1) % fftData->fftHistoryLen;
+    fftData->historyPos = (fftData->historyPos + 1)%fftData->fftHistoryLen;
 }
 
 static void RenderFrame(const FFTData *fftData, Image *fftImage)
@@ -277,12 +277,9 @@ static void RenderFrame(const FFTData *fftData, Image *fftImage)
     double framesSinceTapback = floor(fftData->tapbackPos/WINDOW_TIME);
     framesSinceTapback = Clamp(framesSinceTapback, 0.0, fftData->fftHistoryLen - 1);
 
-    int historyPosition = (fftData->historyPos - 1 - (int)framesSinceTapback) % fftData->fftHistoryLen;
-    if (historyPosition < 0)
-        historyPosition += fftData->fftHistoryLen;
+    int historyPosition = (fftData->historyPos - 1 - (int)framesSinceTapback)%fftData->fftHistoryLen;
+    if (historyPosition < 0) historyPosition += fftData->fftHistoryLen;
 
     const float *amplitude = fftData->fftHistory[historyPosition];
-    for (int bin = 0; bin < BUFFER_SIZE; bin++) {
-        ImageDrawPixel(fftImage, bin, FFT_ROW, ColorFromNormalized((Vector4){ amplitude[bin], UNUSED_CHANNEL, UNUSED_CHANNEL, UNUSED_CHANNEL }));
-    }
+    for (int bin = 0; bin < BUFFER_SIZE; bin++) ImageDrawPixel(fftImage, bin, FFT_ROW, ColorFromNormalized((Vector4){ amplitude[bin], UNUSED_CHANNEL, UNUSED_CHANNEL, UNUSED_CHANNEL }));
 }

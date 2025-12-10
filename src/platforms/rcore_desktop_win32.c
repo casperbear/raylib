@@ -72,6 +72,8 @@
 #include <shellscalingapi.h>
 #include <versionhelpers.h>
 
+#include <malloc.h>          // Required for alloca()
+
 #if !defined(GRAPHICS_API_OPENGL_11_SOFTWARE)
     #include <GL/gl.h>
 #endif
@@ -260,9 +262,9 @@ static bool DecoratedFromStyle(DWORD style)
 // Get window style from required flags
 static DWORD MakeWindowStyle(unsigned flags)
 {
-    // We don't need this since we don't have any child windows, but I guess
-    // it improves efficiency, plus, windows adds this flag automatically anyway
-    // so it keeps our flags in sync with the OS
+    // Flag is not needed because there are no child windows,
+    // but supposedly it improves efficiency, plus, windows adds this 
+    // flag automatically anyway so it keeps flags in sync with the OS
     DWORD style = WS_CLIPSIBLINGS;
 
     style |= (flags & FLAG_WINDOW_HIDDEN)? 0 : WS_VISIBLE;
@@ -937,7 +939,7 @@ void SetWindowIcon(Image image)
 // Set icon for window
 void SetWindowIcons(Image *images, int count)
 {
-    // TODO.
+    // TODO: Implement SetWindowIcons()
 }
 
 void SetWindowTitle(const char *title)
@@ -1228,7 +1230,7 @@ void SwapScreenBuffer(void)
 // Get elapsed time measure in seconds
 double GetTime(void)
 {
-    LARGE_INTEGER now;
+    LARGE_INTEGER now = 0;
     QueryPerformanceCounter(&now);
     return (double)(now.QuadPart - CORE.Time.base)/(double)platform.timerFrequency.QuadPart;
 }
@@ -1244,7 +1246,11 @@ void OpenURL(const char *url)
     if (strchr(url, '\'') != NULL) TRACELOG(LOG_WARNING, "SYSTEM: Provided URL could be potentially malicious, avoid [\'] character");
     else
     {
-        TRACELOG(LOG_WARNING, "OpenURL not implemented");
+        char *cmd = (char *)RL_CALLOC(strlen(url) + 32, sizeof(char));
+        sprintf(cmd, "explorer \"%s\"", url);
+        int result = system(cmd);
+        if (result == -1) TRACELOG(LOG_WARNING, "OpenURL() child process could not be created");
+        RL_FREE(cmd);
     }
 }
 
@@ -1981,7 +1987,7 @@ static void HandleKey(WPARAM wparam, LPARAM lparam, char state)
     {
         CORE.Input.Keyboard.currentKeyState[key] = state;
 
-        if ((key == KEY_ESCAPE) && (state == 1)) CORE.Window.shouldClose = 1;
+        if ((key == KEY_ESCAPE) && (state == 1)) CORE.Window.shouldClose = true;
     }
     else TRACELOG(LOG_WARNING, "INPUT: Unknown (or currently unhandled) virtual keycode %d (0x%x)", wparam, wparam);
 

@@ -1524,12 +1524,12 @@ const char *TextFormat(const char *text, ...)
     int requiredByteCount = vsnprintf(currentBuffer, MAX_TEXT_BUFFER_LENGTH, text, args);
     va_end(args);
 
-    // If requiredByteCount is larger than the MAX_TEXT_BUFFER_LENGTH, then overflow occured
+    // If requiredByteCount is larger than the MAX_TEXT_BUFFER_LENGTH, then overflow occurred
     if (requiredByteCount >= MAX_TEXT_BUFFER_LENGTH)
     {
         // Inserting "..." at the end of the string to mark as truncated
         char *truncBuffer = buffers[index] + MAX_TEXT_BUFFER_LENGTH - 4; // Adding 4 bytes = "...\0"
-        sprintf(truncBuffer, "...");
+        snprintf(truncBuffer, 4, "...");
     }
 
     index += 1;     // Move to next buffer for next function call
@@ -1701,7 +1701,7 @@ char *GetTextBetween(const char *text, const char *begin, const char *end)
 
 // Replace text string
 // REQUIRES: strstr(), strncpy(), strcpy()
-// TODO: If (replacement == NULL) remove "search" text
+// TODO: If (replacement == "") remove "search" text
 // WARNING: Allocated memory must be manually freed
 char *TextReplace(const char *text, const char *search, const char *replacement)
 {

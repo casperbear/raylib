@@ -6365,15 +6365,6 @@ return {
       }
     },
     {
-      name = "GenTextureMipmapsEx",
-      description = "Generate GPU mipmaps for a texture",
-      returnType = "void",
-      params = {
-        {type = "Texture2D*", name = "texture"},
-        {type = "int", name = "mipmapsDesired"}
-      }
-    },
-    {
       name = "SetTextureFilter",
       description = "Set texture scaling filter mode",
       returnType = "void",

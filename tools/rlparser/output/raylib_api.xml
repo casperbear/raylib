@@ -112,10 +112,11 @@
             <Field type="int" name="mipmaps" desc="Mipmap levels, 1 by default" />
             <Field type="int" name="format" desc="Data format (PixelFormat type)" />
         </Struct>
-        <Struct name="Texture" fieldCount="5" desc="Texture, tex data stored in GPU memory (VRAM)">
+        <Struct name="Texture" fieldCount="6" desc="Texture, tex data stored in GPU memory (VRAM)">
             <Field type="unsigned int" name="id" desc="OpenGL texture id" />
             <Field type="int" name="width" desc="Texture base width" />
             <Field type="int" name="height" desc="Texture base height" />
+            <Field type="int" name="slices" desc="" />
             <Field type="int" name="mipmaps" desc="Mipmap levels, 1 by default" />
             <Field type="int" name="format" desc="Data format (PixelFormat type)" />
         </Struct>
@@ -679,7 +680,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="598">
+    <Functions count="600">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -1944,6 +1945,10 @@
         <Function name="ImageMipmaps" retType="void" paramCount="1" desc="Compute all mipmap levels for a provided image">
             <Param type="Image *" name="image" desc="" />
         </Function>
+        <Function name="ImageMipmapsEx" retType="void" paramCount="2" desc="Compute desired mipmap levels for a provided image">
+            <Param type="Image*" name="image" desc="" />
+            <Param type="int" name="mipmapsDesired" desc="" />
+        </Function>
         <Function name="ImageDither" retType="void" paramCount="5" desc="Dither image data to 16bpp or lower (Floyd-Steinberg dithering)">
             <Param type="Image *" name="image" desc="" />
             <Param type="int" name="rBpp" desc="" />
@@ -2164,6 +2169,10 @@
         </Function>
         <Function name="LoadTextureFromImage" retType="Texture2D" paramCount="1" desc="Load texture from image data">
             <Param type="Image" name="image" desc="" />
+        </Function>
+        <Function name="LoadTextureArrayFromImages" retType="Texture" paramCount="2" desc="">
+            <Param type="const Image*" name="images" desc="" />
+            <Param type="int" name="count" desc="" />
         </Function>
         <Function name="LoadTextureCubemap" retType="TextureCubemap" paramCount="2" desc="Load cubemap from image, multiple image cubemap layouts supported">
             <Param type="Image" name="image" desc="" />

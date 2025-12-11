@@ -597,6 +597,11 @@ return {
         },
         {
           type = "int",
+          name = "slices",
+          description = ""
+        },
+        {
+          type = "int",
           name = "mipmaps",
           description = "Mipmap levels, 1 by default"
         },
@@ -5857,6 +5862,15 @@ return {
       }
     },
     {
+      name = "ImageMipmapsEx",
+      description = "Compute desired mipmap levels for a provided image",
+      returnType = "void",
+      params = {
+        {type = "Image*", name = "image"},
+        {type = "int", name = "mipmapsDesired"}
+      }
+    },
+    {
       name = "ImageDither",
       description = "Dither image data to 16bpp or lower (Floyd-Steinberg dithering)",
       returnType = "void",
@@ -6285,6 +6299,15 @@ return {
       returnType = "Texture2D",
       params = {
         {type = "Image", name = "image"}
+      }
+    },
+    {
+      name = "LoadTextureArrayFromImages",
+      description = "",
+      returnType = "Texture",
+      params = {
+        {type = "const Image*", name = "images"},
+        {type = "int", name = "count"}
       }
     },
     {

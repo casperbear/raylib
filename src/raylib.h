@@ -272,6 +272,7 @@ typedef struct Texture {
     unsigned int id;        // OpenGL texture id
     int width;              // Texture base width
     int height;             // Texture base height
+    int slices;
     int mipmaps;            // Mipmap levels, 1 by default
     int format;             // Data format (PixelFormat type)
 } Texture;
@@ -336,7 +337,7 @@ typedef Camera3D Camera;    // Camera type fallback, defaults to Camera3D
 typedef struct Camera2D {
     Vector2 offset;         // Camera offset (screen space offset from window origin)
     Vector2 target;         // Camera target (world space target point that is mapped to screen space offset)
-	float rotation;         // Camera rotation in degrees (pivots around target)
+    float rotation;         // Camera rotation in degrees (pivots around target)
     float zoom;             // Camera zoom (scaling around target), must not be set to 0, set to 1.0f for no scale
 } Camera2D;
 
@@ -1377,6 +1378,7 @@ RLAPI void ImageResize(Image *image, int newWidth, int newHeight);              
 RLAPI void ImageResizeNN(Image *image, int newWidth, int newHeight);                                     // Resize image (Nearest-Neighbor scaling algorithm)
 RLAPI void ImageResizeCanvas(Image *image, int newWidth, int newHeight, int offsetX, int offsetY, Color fill); // Resize canvas and fill with color
 RLAPI void ImageMipmaps(Image *image);                                                                   // Compute all mipmap levels for a provided image
+RLAPI void ImageMipmapsEx(Image* image, int mipmapsDesired);                                             // Compute desired mipmap levels for a provided image
 RLAPI void ImageDither(Image *image, int rBpp, int gBpp, int bBpp, int aBpp);                            // Dither image data to 16bpp or lower (Floyd-Steinberg dithering)
 RLAPI void ImageFlipVertical(Image *image);                                                              // Flip image vertically
 RLAPI void ImageFlipHorizontal(Image *image);                                                            // Flip image horizontally
@@ -1425,6 +1427,7 @@ RLAPI void ImageDrawTextEx(Image *dst, Font font, const char *text, Vector2 posi
 // NOTE: These functions require GPU access
 RLAPI Texture2D LoadTexture(const char *fileName);                                                       // Load texture from file into GPU memory (VRAM)
 RLAPI Texture2D LoadTextureFromImage(Image image);                                                       // Load texture from image data
+RLAPI Texture LoadTextureArrayFromImages(const Image* images, int count);
 RLAPI TextureCubemap LoadTextureCubemap(Image image, int layout);                                        // Load cubemap from image, multiple image cubemap layouts supported
 RLAPI RenderTexture2D LoadRenderTexture(int width, int height);                                          // Load texture for rendering (framebuffer)
 RLAPI bool IsTextureValid(Texture2D texture);                                                            // Check if a texture is valid (loaded in GPU)

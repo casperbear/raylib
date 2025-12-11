@@ -1551,6 +1551,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
             if ((i == MATERIAL_MAP_IRRADIANCE) ||
                 (i == MATERIAL_MAP_PREFILTER) ||
                 (i == MATERIAL_MAP_CUBEMAP)) rlEnableTextureCubemap(material.maps[i].texture.id);
+            else if (material.maps[i].texture.slices > 1) rlEnableTextureArray(material.maps[i].texture.id);
             else rlEnableTexture(material.maps[i].texture.id);
 
             rlSetUniform(material.shader.locs[SHADER_LOC_MAP_DIFFUSE + i], &i, SHADER_UNIFORM_INT, 1);
@@ -1672,6 +1673,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
             if ((i == MATERIAL_MAP_IRRADIANCE) ||
                 (i == MATERIAL_MAP_PREFILTER) ||
                 (i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
+            else if (material.maps[i].texture.slices > 1) rlDisableTextureArray(material.maps[i].texture.id);
             else rlDisableTexture();
         }
     }

@@ -2443,6 +2443,78 @@ void ImageMipmaps(Image *image)
     else TRACELOG(LOG_WARNING, "IMAGE: Mipmaps already available");
 }
 
+void ImageMipmapsEx(Image* image, int mipmapsDesired)
+{
+    // Security check to avoid program crash
+    if ((image->data == NULL) || (image->width == 0) || (image->height == 0)) return;
+
+    int mipCount = 1;                   // Required mipmap levels count (including base level)
+    int mipWidth = image->width;        // Base image width
+    int mipHeight = image->height;      // Base image height
+    int mipSize = GetPixelDataSize(mipWidth, mipHeight, image->format);  // Image data size (in bytes)
+
+    // Count mipmap levels required
+    while ((mipWidth != 1 || mipHeight != 1) && mipCount < mipmapsDesired)
+    {
+        if (mipWidth != 1) mipWidth /= 2;
+        if (mipHeight != 1) mipHeight /= 2;
+
+        // Security check for NPOT textures
+        if (mipWidth < 1) mipWidth = 1;
+        if (mipHeight < 1) mipHeight = 1;
+
+        TRACELOGD("IMAGE: Next mipmap level: %i x %i - current size %i", mipWidth, mipHeight, mipSize);
+
+        mipCount++;
+        mipSize += GetPixelDataSize(mipWidth, mipHeight, image->format);       // Add mipmap size (in bytes)
+    }
+
+    if (image->mipmaps < mipCount)
+    {
+        // Create second buffer and copy data manually to it
+        void* temp = RL_CALLOC(mipSize, 1);
+        memcpy(temp, image->data, GetPixelDataSize(image->width, image->height, image->format));
+        RL_FREE(image->data);
+        image->data = temp;
+
+        // Pointer to allocated memory point where store next mipmap level data
+        unsigned char* nextmip = (unsigned char*)image->data;
+
+        mipWidth = image->width;
+        mipHeight = image->height;
+        mipSize = GetPixelDataSize(mipWidth, mipHeight, image->format);
+        Image imCopy = ImageCopy(*image);
+
+        for (int i = 1; i < mipCount; i++)
+        {
+            nextmip += mipSize;
+
+            mipWidth /= 2;
+            mipHeight /= 2;
+
+            // Security check for NPOT textures
+            if (mipWidth < 1) mipWidth = 1;
+            if (mipHeight < 1) mipHeight = 1;
+
+            mipSize = GetPixelDataSize(mipWidth, mipHeight, image->format);
+
+            if (i < image->mipmaps) continue;
+
+            TRACELOGD("IMAGE: Generating mipmap level: %i (%i x %i) - size: %i - offset: 0x%x", i, mipWidth, mipHeight, mipSize, nextmip);
+            if (i <= mipmapsDesired / 2)
+                ImageResize(&imCopy, mipWidth, mipHeight); // Uses internally Mitchell cubic downscale filter
+            else
+                ImageResizeNN(&imCopy, mipWidth, mipHeight);
+            memcpy(nextmip, imCopy.data, mipSize);
+        }
+
+        UnloadImage(imCopy);
+
+        image->mipmaps = mipCount;
+    }
+    else TRACELOG(LOG_WARNING, "IMAGE: Mipmaps already available");
+}
+
 // Dither image data to 16bpp or lower (Floyd-Steinberg dithering)
 // NOTE: In case selected bpp do not represent a known 16bit format,
 // dithered data is stored in the LSB part of the unsigned short
@@ -4153,6 +4225,65 @@ Texture2D LoadTextureFromImage(Image image)
     texture.height = image.height;
     texture.mipmaps = image.mipmaps;
     texture.format = image.format;
+
+    return texture;
+}
+
+Texture LoadTextureArrayFromImages(const Image* images, int count)
+{
+    Texture texture = { 0 };
+
+    if ((images == NULL) || (count <= 0))
+    {
+        TraceLog(LOG_WARNING, "TEXTURE: Array data is not valid to load texture array");
+        return texture;
+    }
+
+    // validate that all images match the dimensions and format of the first one
+    int width = images[0].width;
+    int height = images[0].height;
+    int format = images[0].format;
+    int mipmaps = images[0].mipmaps;
+
+    for (int i = 1; i < count; i++)
+    {
+        if ((images[i].width != width) ||
+            (images[i].height != height) ||
+            (images[i].format != format) ||
+            (images[i].mipmaps != mipmaps))
+        {
+            TraceLog(LOG_WARNING, "TEXTURE: Image %i in array does not match base image properties", i);
+            return texture;
+        }
+    }
+
+    // Collect data pointers
+    // We can't pass a single buffer because Image data might be scattered in memory.
+    // We create a temporary array of pointers.
+    const void** data = (const void**)MemAlloc(count * sizeof(void*));
+    for (int i = 0; i < count; i++)
+    {
+        data[i] = images[i].data;
+    }
+
+    // Call the backend (defined below)
+    texture.id = rlLoadTextureArray(data, width, height, format, count);
+
+    MemFree(data);
+
+    // Fill struct
+    texture.width = width;
+    texture.height = height;
+    texture.format = format;
+    texture.slices = count;
+    texture.mipmaps = 1; // We assume 1 for now, or check if rlLoadTextureArray generated them
+
+    if (texture.id > 0)
+    {
+        // Optional: Generate mipmaps if Raylib's config suggests it, 
+        // or if you want to support it explicitly.
+        // rlGenerateMipmapsArray(texture); // You would need to implement this too
+    }
 
     return texture;
 }

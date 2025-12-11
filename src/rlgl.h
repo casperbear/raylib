@@ -659,6 +659,8 @@ RLAPI void rlDisableStatePointer(int vertexAttribType); // Disable attribute sta
 RLAPI void rlActiveTextureSlot(int slot);               // Select and active a texture slot
 RLAPI void rlEnableTexture(unsigned int id);            // Enable texture
 RLAPI void rlDisableTexture(void);                      // Disable texture
+RLAPI void rlEnableTextureArray(unsigned int id);
+RLAPI void rlDisableTextureArray(void);
 RLAPI void rlEnableTextureCubemap(unsigned int id);     // Enable texture cubemap
 RLAPI void rlDisableTextureCubemap(void);               // Disable texture cubemap
 RLAPI void rlTextureParameters(unsigned int id, int param, int value); // Set texture parameters (filter, wrap)
@@ -761,6 +763,7 @@ RLAPI void rlDrawVertexArrayElementsInstanced(int offset, int count, const void 
 
 // Textures management
 RLAPI unsigned int rlLoadTexture(const void *data, int width, int height, int format, int mipmapCount); // Load texture data
+RLAPI unsigned int rlLoadTextureArray(const void** data, int width, int height, int format, int slices);
 RLAPI unsigned int rlLoadTextureDepth(int width, int height, bool useRenderBuffer); // Load depth texture/renderbuffer (to be attached to fbo)
 RLAPI unsigned int rlLoadTextureCubemap(const void *data, int size, int format, int mipmapCount); // Load texture cubemap data
 RLAPI void rlUpdateTexture(unsigned int id, int offsetX, int offsetY, int width, int height, int format, const void *data); // Update texture with new data on GPU
@@ -1740,6 +1743,26 @@ void rlDisableTexture(void)
     glDisable(GL_TEXTURE_2D);
 #endif
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void rlEnableTextureArray(unsigned int id)
+{
+#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
+    TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
+    return 0;
+#else
+    glBindTextureArray(GL_TEXTURE_2D, id);
+#endif
+}
+
+void rlDisableTextureArray(void)
+{
+#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
+    TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
+    return 0;
+#else
+    glBindTextureArray(GL_TEXTURE_2D, 0);
+#endif
 }
 
 // Enable texture cubemap
@@ -3411,6 +3434,97 @@ unsigned int rlLoadTexture(const void *data, int width, int height, int format, 
     else TRACELOG(RL_LOG_WARNING, "TEXTURE: Failed to load texture");
 
     return id;
+}
+
+unsigned int rlLoadTextureArray(const void** data, int width, int height, int format, int slices)
+{
+    unsigned int id = 0;
+
+    // Texture Arrays are only supported in GL 3.0+ or ES 3.0+
+#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
+    TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
+    return 0;
+#else
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0); // Free any old binding
+
+    // Get GL internal formats
+    unsigned int glInternalFormat, glFormat, glType;
+    rlGetGlTextureFormats(format, &glInternalFormat, &glFormat, &glType);
+
+    // Basic validation
+    if (glInternalFormat == 0)
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Pixel format not supported for Texture Arrays");
+        return 0;
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+
+    // 1. Allocate storage for the whole array
+    // We pass NULL for data here to just reserve the GPU memory.
+    // NOTE: We are assuming Mipmap Level 0. If you want mipmaps, you allocate for level 0, 
+    // and usually call glGenerateMipmap() later.
+    if (format < RL_PIXELFORMAT_COMPRESSED_DXT1_RGB)
+    {
+        // Uncompressed allocation
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, glInternalFormat, width, height, slices, 0, glFormat, glType, NULL);
+    }
+    else
+    {
+        // Compressed allocation
+        // We need to calculate total size for the allocation, but usually, 
+        // compressed textures are loaded via glCompressedTexImage3D.
+        // Handling compressed uploads slice-by-slice via pointers is complex 
+        // because we need exact block sizes. 
+        // For simplicity in this implementation, we focus on uncompressed (Image) loading.
+        TRACELOG(LOG_WARNING, "TEXTURE: Compressed formats not yet implemented for rlLoadTextureArray");
+        glDeleteTextures(1, &id);
+        return 0;
+    }
+
+    // 2. Upload slices
+    if (data != NULL)
+    {
+        for (int i = 0; i < slices; i++)
+        {
+            if (data[i] != NULL)
+            {
+                // zoffset = i (the slice index)
+                // depth = 1 (we are uploading one slice)
+                glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, glFormat, glType, data[i]);
+            }
+        }
+    }
+
+    // 3. Texture Parameters
+    // GL_TEXTURE_WRAP_R is technically depth, but often ignored for arrays. 
+    // However, S and T are important.
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // Filter setup
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    // Note: If you implement Mipmaps later, change MIN_FILTER to GL_LINEAR_MIPMAP_LINEAR
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    if (id > 0)
+    {
+        TRACELOG(LOG_INFO, "TEXTURE: [ID %i] Texture Array loaded successfully (%ix%ix%i | %s)",
+            id, width, height, slices, rlGetPixelFormatName(format));
+    }
+    else
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Failed to load texture array");
+    }
+
+    return id;
+#endif
 }
 
 // Load depth texture/renderbuffer (to be attached to fbo)

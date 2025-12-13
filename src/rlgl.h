@@ -664,6 +664,7 @@ RLAPI void rlDisableTextureArray(void);
 RLAPI void rlEnableTextureCubemap(unsigned int id);     // Enable texture cubemap
 RLAPI void rlDisableTextureCubemap(void);               // Disable texture cubemap
 RLAPI void rlTextureParameters(unsigned int id, int param, int value); // Set texture parameters (filter, wrap)
+RLAPI void rlTextureArrayParameters(unsigned int id, int param, int value);
 RLAPI void rlCubemapParameters(unsigned int id, int param, int value); // Set cubemap parameters (filter, wrap)
 
 // Shader state
@@ -771,7 +772,9 @@ RLAPI void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, uns
 RLAPI const char *rlGetPixelFormatName(unsigned int format);              // Get name string for pixel format
 RLAPI void rlUnloadTexture(unsigned int id);                              // Unload texture from GPU memory
 RLAPI void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int *mipmaps); // Generate mipmap data for selected texture
+RLAPI void rlGenTextureArrayMipmaps(unsigned int id, int width, int height, int format, int* mipmaps);
 RLAPI void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired); // Generate mipmap data for selected texture
+RLAPI void rlGenTextureArrayMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired);
 RLAPI void *rlReadTexturePixels(unsigned int id, int width, int height, int format); // Read texture pixel data
 RLAPI unsigned char *rlReadScreenPixels(int width, int height);           // Read screen pixel data (color buffer)
 
@@ -1751,7 +1754,7 @@ void rlEnableTextureArray(unsigned int id)
     TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
     return 0;
 #else
-    glBindTextureArray(GL_TEXTURE_2D, id);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
 #endif
 }
 
@@ -1761,7 +1764,7 @@ void rlDisableTextureArray(void)
     TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
     return 0;
 #else
-    glBindTextureArray(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 #endif
 }
 
@@ -1826,6 +1829,52 @@ void rlTextureParameters(unsigned int id, int param, int value)
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void rlTextureArrayParameters(unsigned int id, int param, int value)
+{
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+
+#if !defined(GRAPHICS_API_OPENGL_11)
+    // Reset anisotropy filter, in case it was set
+    glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1.0f);
+#endif
+
+    switch (param)
+    {
+    case RL_TEXTURE_WRAP_S:
+    case RL_TEXTURE_WRAP_T:
+    {
+        if (value == RL_TEXTURE_WRAP_MIRROR_CLAMP)
+        {
+#if !defined(GRAPHICS_API_OPENGL_11)
+            if (RLGL.ExtSupported.texMirrorClamp) glTexParameteri(GL_TEXTURE_2D_ARRAY, param, value);
+            else TRACELOG(RL_LOG_WARNING, "GL: Clamp mirror wrap mode not supported (GL_MIRROR_CLAMP_EXT)");
+#endif
+        }
+        else glTexParameteri(GL_TEXTURE_2D_ARRAY, param, value);
+    } break;
+    case RL_TEXTURE_MAG_FILTER:
+    case RL_TEXTURE_MIN_FILTER: glTexParameteri(GL_TEXTURE_2D_ARRAY, param, value); break;
+    case RL_TEXTURE_FILTER_ANISOTROPIC:
+    {
+#if !defined(GRAPHICS_API_OPENGL_11)
+        if (value <= RLGL.ExtSupported.maxAnisotropyLevel) glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)value);
+        else if (RLGL.ExtSupported.maxAnisotropyLevel > 0.0f)
+        {
+            TRACELOG(RL_LOG_WARNING, "GL: Maximum anisotropic filter level supported is %iX", id, (int)RLGL.ExtSupported.maxAnisotropyLevel);
+            glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)value);
+        }
+        else TRACELOG(RL_LOG_WARNING, "GL: Anisotropic filtering not supported");
+#endif
+    } break;
+#if defined(GRAPHICS_API_OPENGL_33)
+    case RL_TEXTURE_MIPMAP_BIAS_RATIO: glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, value / 100.0f);
+#endif
+    default: break;
+    }
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
 // Set cubemap parameters (wrap mode/filter mode)
@@ -3810,6 +3859,36 @@ void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int
 #endif
 }
 
+void rlGenTextureArrayMipmaps(unsigned int id, int width, int height, int format, int* mipmaps)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+
+    // Check if texture is power-of-two (POT)
+    bool texIsPOT = false;
+
+    if (((width > 0) && ((width & (width - 1)) == 0)) &&
+        ((height > 0) && ((height & (height - 1)) == 0))) texIsPOT = true;
+
+    if ((texIsPOT) || (RLGL.ExtSupported.texNPOT))
+    {
+        //glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE);   // Hint for mipmaps generation algorithm: GL_FASTEST, GL_NICEST, GL_DONT_CARE
+        glGenerateMipmap(GL_TEXTURE_2D_ARRAY);    // Generate mipmaps automatically
+
+#define MIN(a,b) (((a)<(b))? (a):(b))
+#define MAX(a,b) (((a)>(b))? (a):(b))
+
+        * mipmaps = 1 + (int)floor(log(MAX(width, height)) / log(2));
+        TRACELOG(RL_LOG_INFO, "TEXTURE: [ID %i] Mipmaps generated automatically, total: %i", id, *mipmaps);
+    }
+    else TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] Failed to generate mipmaps", id);
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+#else
+    TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] GPU mipmap generation not supported", id);
+#endif
+}
+
 void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired)
 {
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
@@ -3837,6 +3916,38 @@ void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, i
     else TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] Failed to generate mipmaps", id);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+#else
+    TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] GPU mipmap generation not supported", id);
+#endif
+}
+
+void rlGenTextureArrayMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+
+    // Check if texture is power-of-two (POT)
+    bool texIsPOT = false;
+
+    if (((width > 0) && ((width & (width - 1)) == 0)) &&
+        ((height > 0) && ((height & (height - 1)) == 0))) texIsPOT = true;
+
+    if ((texIsPOT) || (RLGL.ExtSupported.texNPOT))
+    {
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, mipmapsDesired - 1);
+
+        //glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE);   // Hint for mipmaps generation algorithm: GL_FASTEST, GL_NICEST, GL_DONT_CARE
+        glGenerateMipmap(GL_TEXTURE_2D_ARRAY);    // Generate mipmaps automatically
+
+#define MIN(a,b) (((a)<(b))? (a):(b))
+#define MAX(a,b) (((a)>(b))? (a):(b))
+
+        * mipmaps = mipmapsDesired;
+        TRACELOG(RL_LOG_INFO, "TEXTURE: [ID %i] Mipmaps generated automatically, total: %i", id, *mipmaps);
+    }
+    else TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] Failed to generate mipmaps", id);
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 #else
     TRACELOG(RL_LOG_WARNING, "TEXTURE: [ID %i] GPU mipmap generation not supported", id);
 #endif

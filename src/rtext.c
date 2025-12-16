@@ -167,7 +167,7 @@ extern void LoadFontDefault(void)
     if (defaultFont.glyphs != NULL) return;
 
     // NOTE: Using UTF-8 encoding table for Unicode U+0000..U+00FF Basic Latin + Latin-1 Supplement
-    // Ref: http://www.utf8-chartable.de/unicode-utf8-table.pl
+    // REF: http://www.utf8-chartable.de/unicode-utf8-table.pl
 
     defaultFont.glyphCount = 224;   // Number of glyphs included in our default font
     defaultFont.glyphPadding = 0;   // Characters padding
@@ -649,7 +649,9 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
 
             // Calculate font basic metrics
             // NOTE: ascent is equivalent to font baseline
-            int ascent, descent, lineGap;
+            int ascent = 0;
+            int descent = 0;
+            int lineGap = 0;
             stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap);
 
             // In case no chars count provided, default to 95
@@ -1449,17 +1451,17 @@ char **LoadTextLines(const char *text, int *count)
 
     if (text != NULL)
     {
-        int textSize = TextLength(text);
+        int textLength = TextLength(text);
         lineCount = 1;
 
         // First text scan pass to get required line count
-        for (int i = 0; i < textSize; i++)
+        for (int i = 0; i < textLength; i++)
         {
             if (text[i] == '\n') lineCount++;
         }
 
         lines = (char **)RL_CALLOC(lineCount, sizeof(char *));
-        for (int i = 0, l = 0, lineLen = 0; i <= textSize; i++)
+        for (int i = 0, l = 0, lineLen = 0; i <= textLength; i++)
         {
             if ((text[i] == '\n') || (text[i] == '\0'))
             {
@@ -2483,7 +2485,15 @@ static Font LoadBMFont(const char *fileName)
     font.glyphs = (GlyphInfo *)RL_MALLOC(glyphCount*sizeof(GlyphInfo));
     font.recs = (Rectangle *)RL_MALLOC(glyphCount*sizeof(Rectangle));
 
-    int charId, charX, charY, charWidth, charHeight, charOffsetX, charOffsetY, charAdvanceX, pageID;
+    int charId = 0;
+    int charX = 0;
+    int charY = 0;
+    int charWidth = 0; 
+    int charHeight = 0;
+    int charOffsetX = 0;
+    int charOffsetY = 0;
+    int charAdvanceX = 0;
+    int pageID = 0;
 
     for (int i = 0; i < glyphCount; i++)
     {

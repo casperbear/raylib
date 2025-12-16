@@ -127,10 +127,13 @@
 // Defines and Macros
 //----------------------------------------------------------------------------------
 #ifndef MAX_MATERIAL_MAPS
-    #define MAX_MATERIAL_MAPS       12    // Maximum number of maps supported
+    #define MAX_MATERIAL_MAPS       12      // Maximum number of maps supported
 #endif
 #ifndef MAX_MESH_VERTEX_BUFFERS
-    #define MAX_MESH_VERTEX_BUFFERS  9    // Maximum vertex buffers (VBO) per mesh
+    #define MAX_MESH_VERTEX_BUFFERS  9      // Maximum vertex buffers (VBO) per mesh
+#endif
+#ifndef MAX_FILEPATH_LENGTH 
+    #define MAX_FILEPATH_LENGTH   4096      // Maximum length for filepaths (Linux PATH_MAX default value)
 #endif
 
 //----------------------------------------------------------------------------------
@@ -3657,7 +3660,7 @@ void GenMeshTangents(Mesh *mesh)
     for (int t = 0; t < mesh->triangleCount; t++)
     {
         // Get triangle vertex indices
-        int i0, i1, i2;
+        int i0 = 0, i1 = 0, i2 = 0;
 
         if (mesh->indices != NULL)
         {
@@ -4152,7 +4155,9 @@ RayCollision GetRayCollisionMesh(Ray ray, Mesh mesh, Matrix transform)
         // Test against all triangles in mesh
         for (int i = 0; i < triangleCount; i++)
         {
-            Vector3 a, b, c;
+            Vector3 a = { 0 }; 
+            Vector3 b = { 0 };
+            Vector3 c = { 0 };
             Vector3 *vertdata = (Vector3 *)mesh.vertices;
 
             if (mesh.indices)
@@ -4195,8 +4200,10 @@ RayCollision GetRayCollisionTriangle(Ray ray, Vector3 p1, Vector3 p2, Vector3 p3
     RayCollision collision = { 0 };
     Vector3 edge1 = { 0 };
     Vector3 edge2 = { 0 };
-    Vector3 p, q, tv;
-    float det, invDet, u, v, t;
+    Vector3 p = { 0 };
+    Vector3 q = { 0 };
+    Vector3 tv = { 0 };
+    float det = 0.0f, invDet = 0.0f, u = 0.0f, v = 0.0f, t = 0.0f;
 
     // Find vectors for two edges sharing V1
     edge1 = Vector3Subtract(p2, p1);
@@ -6000,8 +6007,8 @@ static Model LoadGLTF(const char *fileName)
         //----------------------------------------------------------------------------------------------------
 
         // Load animation data
-        // Ref: https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skins
-        // Ref: https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes
+        // REF: https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skins
+        // REF: https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes
         //
         // LIMITATIONS:
         //  - Only supports 1 armature per file, and skips loading it if there are multiple armatures

@@ -1789,11 +1789,6 @@ void rlTextureParameters(unsigned int id, int param, int value)
 {
     glBindTexture(GL_TEXTURE_2D, id);
 
-#if !defined(GRAPHICS_API_OPENGL_11)
-    // Reset anisotropy filter, in case it was set
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1.0f);
-#endif
-
     switch (param)
     {
         case RL_TEXTURE_WRAP_S:
@@ -1813,6 +1808,9 @@ void rlTextureParameters(unsigned int id, int param, int value)
         case RL_TEXTURE_FILTER_ANISOTROPIC:
         {
 #if !defined(GRAPHICS_API_OPENGL_11)
+            // Reset anisotropy filter, in case it was set
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1.0f);
+
             if (value <= RLGL.ExtSupported.maxAnisotropyLevel) glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)value);
             else if (RLGL.ExtSupported.maxAnisotropyLevel > 0.0f)
             {
@@ -2569,12 +2567,12 @@ void rlLoadExtensions(void *loader)
     const char *extensions = (const char *)glGetString(GL_EXTENSIONS);  // One big const string
 
     // NOTE: We have to duplicate string because glGetString() returns a const string
-    int extSize = (int)strlen(extensions); // Get extensions string size in bytes
-    char *extensionsDup = (char *)RL_CALLOC(extSize + 1, sizeof(char)); // Allocate space for copy with additional EOL byte
-    strncpy(extensionsDup, extensions, extSize);
+    int extensionsLength = (int)strlen(extensions); // Get extensions string size in bytes
+    char *extensionsDup = (char *)RL_CALLOC(extensionsLength + 1, sizeof(char)); // Allocate space for copy with additional EOL byte
+    strncpy(extensionsDup, extensions, extensionsLength);
     extList[numExt] = extensionsDup;
 
-    for (int i = 0; i < extSize; i++)
+    for (int i = 0; i < extensionsLength; i++)
     {
         if (extensionsDup[i] == ' ')
         {
@@ -4174,7 +4172,7 @@ void rlUnloadFramebuffer(unsigned int id)
 
     // TODO: Review warning retrieving object name in WebGL
     // WARNING: WebGL: INVALID_ENUM: getFramebufferAttachmentParameter: invalid parameter name
-    // Ref: https://registry.khronos.org/webgl/specs/latest/1.0/
+    // REF: https://registry.khronos.org/webgl/specs/latest/1.0/
     glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depthId);
 
     unsigned int depthIdU = (unsigned int)depthId;
@@ -4745,7 +4743,7 @@ void rlSetUniformMatrices(int locIndex, const Matrix *matrices, int count)
     glUniformMatrix4fv(locIndex, count, true, (const float *)matrices);
 #elif defined(GRAPHICS_API_OPENGL_ES2)
     // WARNING: WebGL does not support Matrix transpose ("true" parameter)
-    // Ref: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/uniformMatrix
+    // REF: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/uniformMatrix
     glUniformMatrix4fv(locIndex, count, false, (const float *)matrices);
 #endif
 }

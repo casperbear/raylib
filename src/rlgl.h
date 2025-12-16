@@ -3530,6 +3530,7 @@ unsigned int rlLoadTextureArray(const void** data, int width, int height, int fo
         // Handling compressed uploads slice-by-slice via pointers is complex 
         // because we need exact block sizes. 
         // For simplicity in this implementation, we focus on uncompressed (Image) loading.
+        // todo: implement compressed formats
         TRACELOG(LOG_WARNING, "TEXTURE: Compressed formats not yet implemented for rlLoadTextureArray");
         glDeleteTextures(1, &id);
         return 0;
@@ -3545,6 +3546,7 @@ unsigned int rlLoadTextureArray(const void** data, int width, int height, int fo
                 // zoffset = i (the slice index)
                 // depth = 1 (we are uploading one slice)
                 glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, glFormat, glType, data[i]);
+                // todo: Load the different mipmap levels
             }
         }
     }

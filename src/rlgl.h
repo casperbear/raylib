@@ -765,6 +765,7 @@ RLAPI void rlDrawVertexArrayElementsInstanced(int offset, int count, const void 
 // Textures management
 RLAPI unsigned int rlLoadTexture(const void *data, int width, int height, int format, int mipmapCount); // Load texture data
 RLAPI unsigned int rlLoadTextureArray(const void** data, int width, int height, int format, int slices);
+RLAPI unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int rows, int columns);
 RLAPI unsigned int rlLoadTextureDepth(int width, int height, bool useRenderBuffer); // Load depth texture/renderbuffer (to be attached to fbo)
 RLAPI unsigned int rlLoadTextureCubemap(const void *data, int size, int format, int mipmapCount); // Load texture cubemap data
 RLAPI void rlUpdateTexture(unsigned int id, int offsetX, int offsetY, int width, int height, int format, const void *data); // Update texture with new data on GPU
@@ -3568,6 +3569,121 @@ unsigned int rlLoadTextureArray(const void** data, int width, int height, int fo
     else
     {
         TRACELOG(LOG_WARNING, "TEXTURE: Failed to load texture array");
+    }
+
+    return id;
+#endif
+}
+
+unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int rows, int columns)
+{
+    unsigned int id = 0;
+
+    // Texture Arrays are only supported in GL 3.0+ or ES 3.0+
+#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
+    TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
+    return 0;
+#else
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0); // Free any old binding
+
+    // Get GL internal formats
+    unsigned int glInternalFormat, glFormat, glType;
+    rlGetGlTextureFormats(format, &glInternalFormat, &glFormat, &glType);
+
+    // Basic validation
+    if (glInternalFormat == 0)
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Pixel format not supported for Texture Arrays");
+        return 0;
+    }
+
+    // Calculate dimensions of a single slice (tile)
+    int sliceWidth = width / columns;
+    int sliceHeight = height / rows;
+    int sliceCount = rows * columns;
+
+    // Warning if atlas size doesn't divide evenly
+    if ((width % columns != 0) || (height % rows != 0))
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Atlas dimensions (%ix%i) are not perfectly divisible by rows/cols (%ix%i). Truncation will occur.", width, height, rows, columns);
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+
+    // 1. Allocate storage for the whole array
+    // Note: Dimensions passed to glTexImage3D are for a SINGLE LAYER. Depth is the number of layers.
+    if (format < RL_PIXELFORMAT_COMPRESSED_DXT1_RGB)
+    {
+        // Uncompressed allocation
+        // We pass NULL to just reserve the memory on GPU
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, glInternalFormat, sliceWidth, sliceHeight, sliceCount, 0, glFormat, glType, NULL);
+    }
+    else
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Compressed formats not implemented for Atlas-to-Array loading");
+        glDeleteTextures(1, &id);
+        return 0;
+    }
+
+    // 2. Upload slices from the single Atlas buffer
+    if (data != NULL)
+    {
+        // Setup the Pixel Store to handle reading from the large Atlas buffer.
+        // UNPACK_ROW_LENGTH tells OpenGL the width of the full source image in pixels.
+        // This allows the driver to calculate the stride between rows correctly.
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, width);
+
+        int layer = 0;
+
+        // Scan first row first, from left to right
+        for (int y = 0; y < rows; y++)
+        {
+            for (int x = 0; x < columns; x++)
+            {
+                // UNPACK_SKIP_PIXELS/ROWS tells OpenGL where to start reading for this specific call
+                glPixelStorei(GL_UNPACK_SKIP_PIXELS, x * sliceWidth);
+                glPixelStorei(GL_UNPACK_SKIP_ROWS, y * sliceHeight);
+
+                // Upload the sub-region to the specific layer index
+                // zoffset = layer, depth = 1
+                glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+                    0, 0, layer,            // x, y, z offsets
+                    sliceWidth, sliceHeight, 1, // width, height, depth
+                    glFormat, glType, data);
+
+                layer++;
+            }
+        }
+
+        // IMPORTANT: Reset PixelStore defaults!
+        // If these are left set, subsequent texture loads (UI, fonts, etc.) will fail or look slanted.
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    }
+
+    // 3. Texture Parameters
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // No mipmap support requested, so we stick to basic filtering
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    if (id > 0)
+    {
+        TRACELOG(LOG_INFO, "TEXTURE: [ID %i] Texture Array loaded from Atlas (%ix%ix%i slices)",
+            id, sliceWidth, sliceHeight, sliceCount);
+    }
+    else
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Failed to load texture array from atlas");
     }
 
     return id;

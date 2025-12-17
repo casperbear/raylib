@@ -4296,6 +4296,41 @@ Texture LoadTextureArrayFromImages(const Image* images, int count)
     return texture;
 }
 
+Texture LoadTextureArrayFromAtlasImage(Image atlas, int rows, int columns)
+{
+    Texture texture = { 0 };
+
+    if ((atlas.width == 0) || (atlas.height == 0) || (atlas.data == NULL))
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Atlas image data is not valid");
+        return texture;
+    }
+
+    if (rows * columns <= 0)
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: Invalid rows/columns for Texture Array Atlas");
+        return texture;
+    }
+
+    // Call the RLGL backend
+    texture.id = rlLoadTextureArrayFromAtlas(atlas.data, atlas.width, atlas.height, atlas.format, rows, columns);
+
+    if (texture.id > 0)
+    {
+        // For a Texture Array, width/height represent the size of ONE SLICE, not the whole atlas
+        texture.width = atlas.width / columns;
+        texture.height = atlas.height / rows;
+
+        // This texture contains multiple slices (layers)
+        texture.slices = rows * columns; // We allocated the full grid
+
+        texture.format = atlas.format;
+        texture.mipmaps = 1;
+    }
+
+    return texture;
+}
+
 // Load cubemap from image, multiple image cubemap layouts supported
 TextureCubemap LoadTextureCubemap(Image image, int layout)
 {

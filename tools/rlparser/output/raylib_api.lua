@@ -6311,6 +6311,16 @@ return {
       }
     },
     {
+      name = "LoadTextureArrayFromAtlasImage",
+      description = "",
+      returnType = "Texture",
+      params = {
+        {type = "Image", name = "images"},
+        {type = "int", name = "rows"},
+        {type = "int", name = "columns"}
+      }
+    },
+    {
       name = "LoadTextureCubemap",
       description = "Load cubemap from image, multiple image cubemap layouts supported",
       returnType = "TextureCubemap",

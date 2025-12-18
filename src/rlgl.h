@@ -393,6 +393,7 @@ typedef struct rlVertexBuffer {
 
     float *vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
     float *texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
+    float* texcoords2;          // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
     float *normals;             // Vertex normal (XYZ - 3 components per vertex) (shader-location = 2)
     unsigned char *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
 #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_33)
@@ -1083,6 +1084,7 @@ typedef struct rlglData {
     struct {
         int vertexCounter;                  // Current active render batch vertex counter (generic, used for all batches)
         float texcoordx, texcoordy;         // Current active texture coordinate (added on glVertex*())
+        float texcoord2x, texcoord2y;
         float normalx, normaly, normalz;    // Current active normal (added on glVertex*())
         unsigned char colorr, colorg, colorb, colora;   // Current active color (added on glVertex*())
 

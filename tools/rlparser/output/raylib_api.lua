@@ -7604,6 +7604,23 @@ return {
       }
     },
     {
+      name = "DrawBillboardProFromArray",
+      description = "",
+      returnType = "void",
+      params = {
+        {type = "Camera", name = "camera"},
+        {type = "Texture2D", name = "texture"},
+        {type = "Rectangle", name = "source"},
+        {type = "Vector3", name = "position"},
+        {type = "Vector3", name = "up"},
+        {type = "Vector2", name = "size"},
+        {type = "Vector2", name = "origin"},
+        {type = "float", name = "rotation"},
+        {type = "Color", name = "tint"},
+        {type = "int", name = "slice"}
+      }
+    },
+    {
       name = "UploadMesh",
       description = "Upload mesh vertex data in GPU and provide VAO/VBO ids",
       returnType = "void",

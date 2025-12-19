@@ -3203,12 +3203,9 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01]);
 
                 // Bind vertex attrib: texcoord2 (shader-location = 5)
-                if (RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02] != -1)
-                {
-                    glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[5]);
-                    glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02], 2, GL_FLOAT, 0, 0, 0);
-                    glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02]);
-                }
+                glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[5]);
+                glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02], 2, GL_FLOAT, 0, 0, 0);
+                glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02]);
 
                 // Bind vertex attrib: normal (shader-location = 2)
                 glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[2]);

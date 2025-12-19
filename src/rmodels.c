@@ -3960,6 +3960,85 @@ void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle source, Vector
     rlSetTexture(texture.id);
     rlBegin(RL_QUADS);
 
+        rlTexCoord2f2(0.0f, 0.0f);
+
+        rlColor4ub(tint.r, tint.g, tint.b, tint.a);
+        for (int i = 0; i < 4; i++)
+        {
+            rlTexCoord2f(texcoords[i].x, texcoords[i].y);
+            rlVertex3f(points[i].x, points[i].y, points[i].z);
+        }
+
+    rlEnd();
+    rlSetTexture(0);
+}
+
+void DrawBillboardProFromArray(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector3 up, Vector2 size, Vector2 origin, float rotation, Color tint, int slice)
+{
+    // Compute the up vector and the right vector
+    Matrix matView = MatrixLookAt(camera.position, camera.target, camera.up);
+    Vector3 right = { matView.m0, matView.m4, matView.m8 };
+    right = Vector3Scale(right, size.x);
+    up = Vector3Scale(up, size.y);
+
+    // Flip the content of the billboard while maintaining the counterclockwise edge rendering order
+    if (size.x < 0.0f)
+    {
+        source.x -= size.x;
+        source.width *= -1.0;
+        right = Vector3Negate(right);
+        origin.x *= -1.0f;
+    }
+    if (size.y < 0.0f)
+    {
+        source.y -= size.y;
+        source.height *= -1.0;
+        up = Vector3Negate(up);
+        origin.y *= -1.0f;
+    }
+
+    // Draw the texture region described by source on the following rectangle in 3D space:
+    //
+    //                size.x          <--.
+    //  3 ^---------------------------+ 2 \ rotation
+    //    |                           |   /
+    //    |                           |
+    //    |   origin.x   position     |
+    // up |..............             | size.y
+    //    |             .             |
+    //    |             . origin.y    |
+    //    |             .             |
+    //  0 +---------------------------> 1
+    //                right
+    Vector3 forward;
+    if (rotation != 0.0) forward = Vector3CrossProduct(right, up);
+
+    Vector3 origin3D = Vector3Add(Vector3Scale(Vector3Normalize(right), origin.x), Vector3Scale(Vector3Normalize(up), origin.y));
+
+    Vector3 points[4];
+    points[0] = Vector3Zero();
+    points[1] = right;
+    points[2] = Vector3Add(up, right);
+    points[3] = up;
+
+    for (int i = 0; i < 4; i++)
+    {
+        points[i] = Vector3Subtract(points[i], origin3D);
+        if (rotation != 0.0) points[i] = Vector3RotateByAxisAngle(points[i], forward, rotation * DEG2RAD);
+        points[i] = Vector3Add(points[i], position);
+    }
+
+    Vector2 texcoords[4];
+    texcoords[0] = (Vector2){ (float)source.x / texture.width, (float)(source.y + source.height) / texture.height };
+    texcoords[1] = (Vector2){ (float)(source.x + source.width) / texture.width, (float)(source.y + source.height) / texture.height };
+    texcoords[2] = (Vector2){ (float)(source.x + source.width) / texture.width, (float)source.y / texture.height };
+    texcoords[3] = (Vector2){ (float)source.x / texture.width, (float)source.y / texture.height };
+
+    rlSetTexture(texture.id);
+    rlBegin(RL_QUADS);
+
+        rlTexCoord2f2((float)slice, 0.0f);
+
         rlColor4ub(tint.r, tint.g, tint.b, tint.a);
         for (int i = 0; i < 4; i++)
         {

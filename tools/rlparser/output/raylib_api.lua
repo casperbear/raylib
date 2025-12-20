@@ -7575,6 +7575,19 @@ return {
       }
     },
     {
+      name = "DrawBillboardFromArray",
+      description = "",
+      returnType = "void",
+      params = {
+        {type = "Camera", name = "camera"},
+        {type = "Texture2D", name = "texture"},
+        {type = "Vector3", name = "position"},
+        {type = "float", name = "scale"},
+        {type = "Color", name = "tint"},
+        {type = "int", name = "slice"}
+      }
+    },
+    {
       name = "DrawBillboardRec",
       description = "Draw a billboard texture defined by source",
       returnType = "void",
@@ -7585,6 +7598,20 @@ return {
         {type = "Vector3", name = "position"},
         {type = "Vector2", name = "size"},
         {type = "Color", name = "tint"}
+      }
+    },
+    {
+      name = "DrawBillboardRecFromArray",
+      description = "",
+      returnType = "void",
+      params = {
+        {type = "Camera", name = "camera"},
+        {type = "Texture2D", name = "texture"},
+        {type = "Rectangle", name = "source"},
+        {type = "Vector3", name = "position"},
+        {type = "Vector2", name = "size"},
+        {type = "Color", name = "tint"},
+        {type = "int", name = "slice"}
       }
     },
     {

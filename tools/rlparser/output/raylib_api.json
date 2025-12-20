@@ -8760,7 +8760,7 @@
     },
     {
       "name": "GenTextureArrayMipmaps",
-      "description": "",
+      "description": "Generate GPU mipmaps for a texture array",
       "returnType": "void",
       "params": [
         {
@@ -8786,7 +8786,7 @@
     },
     {
       "name": "GenTextureArrayMipmapsEx",
-      "description": "",
+      "description": "Generate GPU mipmaps for a texture array",
       "returnType": "void",
       "params": [
         {
@@ -8816,7 +8816,7 @@
     },
     {
       "name": "SetTextureArrayFilter",
-      "description": "",
+      "description": "Set texture array scaling filter mode",
       "returnType": "void",
       "params": [
         {

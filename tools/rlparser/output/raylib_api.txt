@@ -3360,7 +3360,7 @@ Function 378: GenTextureMipmaps() (1 input parameters)
 Function 379: GenTextureArrayMipmaps() (1 input parameters)
   Name: GenTextureArrayMipmaps
   Return type: void
-  Description: 
+  Description: Generate GPU mipmaps for a texture array
   Param[1]: texture (type: Texture*)
 Function 380: GenTextureMipmapsEx() (2 input parameters)
   Name: GenTextureMipmapsEx
@@ -3371,7 +3371,7 @@ Function 380: GenTextureMipmapsEx() (2 input parameters)
 Function 381: GenTextureArrayMipmapsEx() (2 input parameters)
   Name: GenTextureArrayMipmapsEx
   Return type: void
-  Description: 
+  Description: Generate GPU mipmaps for a texture array
   Param[1]: texture (type: Texture*)
   Param[2]: mipmapsDesired (type: int)
 Function 382: SetTextureFilter() (2 input parameters)
@@ -3383,7 +3383,7 @@ Function 382: SetTextureFilter() (2 input parameters)
 Function 383: SetTextureArrayFilter() (2 input parameters)
   Name: SetTextureArrayFilter
   Return type: void
-  Description: 
+  Description: Set texture array scaling filter mode
   Param[1]: texture (type: Texture2D)
   Param[2]: filter (type: int)
 Function 384: SetTextureWrap() (2 input parameters)

@@ -3975,7 +3975,7 @@ void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle source, Vector
     rlSetTexture(texture.id);
     rlBegin(RL_QUADS);
 
-        rlTexCoord2f2(0.0f, 0.0f);
+        rlTexCoord2f2(-1.0f, 0.0f);
 
         rlColor4ub(tint.r, tint.g, tint.b, tint.a);
         for (int i = 0; i < 4; i++)
@@ -4049,7 +4049,7 @@ void DrawBillboardProFromArray(Camera camera, Texture2D texture, Rectangle sourc
     texcoords[2] = (Vector2){ (float)(source.x + source.width) / texture.width, (float)source.y / texture.height };
     texcoords[3] = (Vector2){ (float)source.x / texture.width, (float)source.y / texture.height };
 
-    rlSetTexture(texture.id);
+    rlSetTextureArray(texture.id);
     rlBegin(RL_QUADS);
 
         rlTexCoord2f2((float)slice, 0.0f);
@@ -4062,7 +4062,7 @@ void DrawBillboardProFromArray(Camera camera, Texture2D texture, Rectangle sourc
         }
 
     rlEnd();
-    rlSetTexture(0);
+    rlSetTexture(0); // doesn't matter if array or not
 }
 
 // Draw a bounding box with wires

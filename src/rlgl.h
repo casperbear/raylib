@@ -403,7 +403,7 @@ typedef struct rlVertexBuffer {
     unsigned short *indices;    // Vertex indices (in case vertex data comes indexed) (6 indices per quad)
 #endif
     unsigned int vaoId;         // OpenGL Vertex Array Object id
-    unsigned int vboId[6];      // OpenGL Vertex Buffer Objects id (5 types of vertex data)
+    unsigned int vboId[6];      // OpenGL Vertex Buffer Objects id (6 types of vertex data)
 } rlVertexBuffer;
 
 // Draw call type
@@ -417,6 +417,7 @@ typedef struct rlDrawCall {
     //unsigned int vaoId;       // Vertex array id to be used on the draw -> Using RLGL.currentBatch->vertexBuffer.vaoId
     //unsigned int shaderId;    // Shader id to be used on the draw -> Using RLGL.currentShaderId
     unsigned int textureId;     // Texture id to be used on the draw -> Use to create new draw call if changes
+    unsigned int textureTarget; // e.g., GL_TEXTURE_2D or GL_TEXTURE_2D_ARRAY
 
     //Matrix projection;        // Projection matrix for this draw -> Using RLGL.projection by default
     //Matrix modelview;         // Modelview matrix for this draw -> Using RLGL.modelview by default
@@ -745,6 +746,7 @@ RLAPI void rlDrawRenderBatchActive(void);               // Update and draw inter
 RLAPI bool rlCheckRenderBatchLimit(int vCount);         // Check internal buffer overflow for a given number of vertex
 
 RLAPI void rlSetTexture(unsigned int id);               // Set current texture for render batch and check buffers limits
+RLAPI void rlSetTextureArray(unsigned int id);
 
 //------------------------------------------------------------------------------------------------------------------------
 
@@ -846,6 +848,7 @@ RLAPI void rlLoadDrawQuad(void);     // Load and draw a quad
 *
 ************************************************************************************/
 
+// #define RLGL_IMPLEMENTATION // todo: disable before building
 #if defined(RLGL_IMPLEMENTATION)
 
 // Expose OpenGL functions from glad in raylib
@@ -1099,6 +1102,7 @@ typedef struct rlglData {
         int stackCounter;                   // Matrix stack counter
 
         unsigned int currentTextureId;      // Current texture id to be used on glBegin
+        unsigned int currentTextureTarget;  // e.g., GL_TEXTURE_2D or GL_TEXTURE_2D_ARRAY
         unsigned int defaultTextureId;      // Default texture used on shapes/poly drawing (required by shader)
         unsigned int activeTextureId[RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS];    // Active texture ids to be enabled on batch drawing (0 active by default)
         unsigned int defaultVShaderId;      // Default vertex shader id (used by default shader program)
@@ -1519,7 +1523,9 @@ void rlBegin(int mode)
 
         RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode = mode;
         RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = RLGL.State.currentTextureId;
+        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureTarget = RLGL.State.currentTextureTarget;
         RLGL.State.currentTextureId = RLGL.State.defaultTextureId;
+        RLGL.State.currentTextureTarget = GL_TEXTURE_2D;
     }
 }
 
@@ -1529,7 +1535,7 @@ void rlEnd(void)
     // NOTE: Depth increment is dependant on rlOrtho(): z-near and z-far values,
     // as well as depth buffer bit-depth (16bit or 24bit or 32bit)
     // Correct increment formula would be: depthInc = (zfar - znear)/pow(2, bits)
-    RLGL.currentBatch->currentDepth += (1.0f/20000.0f);
+    RLGL.currentBatch->currentDepth += (1.0f/10000.0f);
 }
 
 // Define one vertex (position)
@@ -1698,6 +1704,7 @@ void rlSetTexture(unsigned int id)
             rlDrawRenderBatch(RLGL.currentBatch);
         }
         RLGL.State.currentTextureId = RLGL.State.defaultTextureId;
+        RLGL.State.currentTextureTarget = GL_TEXTURE_2D;
 #endif
     }
     else
@@ -1733,6 +1740,68 @@ void rlSetTexture(unsigned int id)
             if (RLGL.currentBatch->drawCounter >= RL_DEFAULT_BATCH_DRAWCALLS) rlDrawRenderBatch(RLGL.currentBatch);
 
             RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = id;
+            RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount = 0;
+        }
+#endif
+    }
+}
+
+void rlSetTextureArray(unsigned int id)
+{
+    if (id == 0)
+    {
+#if defined(GRAPHICS_API_OPENGL_11)
+        rlDisableTexture();
+#else
+        // NOTE: If quads batch limit is reached, we force a draw call and next batch starts
+        if (RLGL.State.vertexCounter >=
+            RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].elementCount * 4)
+        {
+            rlDrawRenderBatch(RLGL.currentBatch);
+        }
+        RLGL.State.currentTextureId = RLGL.State.defaultTextureId;
+        RLGL.State.currentTextureTarget = GL_TEXTURE_2D; // not array
+#endif
+    }
+    else
+    {
+#if defined(GRAPHICS_API_OPENGL_11)
+        rlEnableTexture(id);
+#else
+        RLGL.State.currentTextureId = id;
+        RLGL.State.currentTextureTarget = GL_TEXTURE_2D_ARRAY;
+        if (RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId != id) // id is unique, no need to check target
+        {
+            if (RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount > 0)
+            {
+                // Make sure current RLGL.currentBatch->draws[i].vertexCount is aligned a multiple of 4,
+                // that way, following QUADS drawing will keep aligned with index processing
+                // It implies adding some extra alignment vertex at the end of the draw,
+                // those vertex are not processed but they are considered as an additional offset
+                // for the next set of vertex to be drawn
+                if (RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode == RL_LINES)
+                    RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexAlignment = ((RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount < 4) ?
+                        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount : RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount % 4);
+                else if (RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode == RL_TRIANGLES)
+                    RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexAlignment = ((RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount < 4) ?
+                        1 : (4 - (RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount % 4)));
+                else RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexAlignment = 0;
+
+                if (!rlCheckRenderBatchLimit(RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexAlignment))
+                {
+                    RLGL.State.vertexCounter += RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexAlignment;
+
+                    RLGL.currentBatch->drawCounter++;
+
+                    RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 2].mode;
+
+                }
+            }
+
+            if (RLGL.currentBatch->drawCounter >= RL_DEFAULT_BATCH_DRAWCALLS) rlDrawRenderBatch(RLGL.currentBatch);
+
+            RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = id;
+            RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureTarget = GL_TEXTURE_2D_ARRAY;
             RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].vertexCount = 0;
         }
 #endif
@@ -2902,6 +2971,7 @@ rlRenderBatch rlLoadRenderBatch(int numBuffers, int bufferElements)
 
         batch.vertexBuffer[i].vertices = (float *)RL_CALLOC(bufferElements*3*4, sizeof(float));     // 3 float by vertex, 4 vertex by quad
         batch.vertexBuffer[i].texcoords = (float *)RL_CALLOC(bufferElements*2*4, sizeof(float));    // 2 float by texcoord, 4 texcoord by quad
+        batch.vertexBuffer[i].texcoords2 = (float*)RL_CALLOC(bufferElements*2*4, sizeof(float));    // slice
         batch.vertexBuffer[i].normals = (float *)RL_CALLOC(bufferElements*3*4, sizeof(float));      // 3 float by vertex, 4 vertex by quad
         batch.vertexBuffer[i].colors = (unsigned char *)RL_CALLOC(bufferElements*4*4, sizeof(unsigned char));   // 4 float by color, 4 colors by quad
 #if defined(GRAPHICS_API_OPENGL_33)
@@ -3224,6 +3294,8 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
             glUniform4f(RLGL.State.currentShaderLocs[RL_SHADER_LOC_COLOR_DIFFUSE], 1.0f, 1.0f, 1.0f, 1.0f);
             glUniform1i(RLGL.State.currentShaderLocs[RL_SHADER_LOC_MAP_DIFFUSE], 0);  // Active default sampler2D: texture0
 
+            unsigned int target = (RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02] != -1) ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+
             // Activate additional sampler textures
             // Those additional textures will be common for all draw calls of the batch
             for (int i = 0; i < RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++)
@@ -3231,7 +3303,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 if (RLGL.State.activeTextureId[i] > 0)
                 {
                     glActiveTexture(GL_TEXTURE0 + 1 + i);
-                    glBindTexture(GL_TEXTURE_2D, RLGL.State.activeTextureId[i]);
+                    glBindTexture(target, RLGL.State.activeTextureId[i]);
                 }
             }
 
@@ -3242,7 +3314,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
             for (int i = 0, vertexOffset = 0; i < batch->drawCounter; i++)
             {
                 // Bind current draw call texture, activated as GL_TEXTURE0 and bound to sampler2D texture0 by default
-                glBindTexture(GL_TEXTURE_2D, batch->draws[i].textureId);
+                glBindTexture(target, batch->draws[i].textureId);
 
                 if ((batch->draws[i].mode == RL_LINES) || (batch->draws[i].mode == RL_TRIANGLES)) glDrawArrays(batch->draws[i].mode, vertexOffset, batch->draws[i].vertexCount);
                 else
@@ -3267,7 +3339,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             }
 
-            glBindTexture(GL_TEXTURE_2D, 0);    // Unbind textures
+            glBindTexture(target, 0);    // Unbind textures
         }
 
         if (RLGL.ExtSupported.vao) glBindVertexArray(0); // Unbind VAO
@@ -3297,6 +3369,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
         batch->draws[i].mode = RL_QUADS;
         batch->draws[i].vertexCount = 0;
         batch->draws[i].textureId = RLGL.State.defaultTextureId;
+        batch->draws[i].textureTarget = GL_TEXTURE_2D;
     }
 
     // Reset active texture units for next batch
@@ -3345,13 +3418,15 @@ bool rlCheckRenderBatchLimit(int vCount)
 
         // Store current primitive drawing mode and texture id
         int currentMode = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode;
-        int currentTexture = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId;
+        int currentTextureId = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId;
+        int currentTextureTarget = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureTarget;
 
         rlDrawRenderBatch(RLGL.currentBatch);    // NOTE: Stereo rendering is checked inside
 
         // Restore state of last batch so we can continue adding vertices
         RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode = currentMode;
-        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = currentTexture;
+        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = currentTextureId;
+        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureTarget = currentTextureTarget;
     }
 #endif
 

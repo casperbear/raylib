@@ -402,7 +402,7 @@ typedef struct rlVertexBuffer {
     unsigned short *indices;    // Vertex indices (in case vertex data comes indexed) (6 indices per quad)
 #endif
     unsigned int vaoId;         // OpenGL Vertex Array Object id
-    unsigned int vboId[6];      // OpenGL Vertex Buffer Objects id (6 types of vertex data)
+    unsigned int vboId[5];      // OpenGL Vertex Buffer Objects id (5 types of vertex data)
 } rlVertexBuffer;
 
 // Draw call type
@@ -632,7 +632,6 @@ RLAPI void rlVertex2i(int x, int y);                    // Define one vertex (po
 RLAPI void rlVertex2f(float x, float y);                // Define one vertex (position) - 2 float
 RLAPI void rlVertex3f(float x, float y, float z);       // Define one vertex (position) - 3 float
 RLAPI void rlTexCoord2f(float x, float y);              // Define one vertex (texture coordinate) - 2 float
-RLAPI void rlTexCoord2f2(float x, float y);
 RLAPI void rlNormal3f(float x, float y, float z);       // Define one vertex (normal) - 3 float
 RLAPI void rlColor4ub(unsigned char r, unsigned char g, unsigned char b, unsigned char a); // Define one vertex (color) - 4 byte
 RLAPI void rlColor3f(float x, float y, float z);        // Define one vertex (color) - 3 float
@@ -1085,7 +1084,6 @@ typedef struct rlglData {
     struct {
         int vertexCounter;                  // Current active render batch vertex counter (generic, used for all batches)
         float texcoordx, texcoordy;         // Current active texture coordinate (added on glVertex*())
-        float texcoord2x, texcoord2y;
         float normalx, normaly, normalz;    // Current active normal (added on glVertex*())
         unsigned char colorr, colorg, colorb, colora;   // Current active color (added on glVertex*())
 
@@ -1615,12 +1613,6 @@ void rlTexCoord2f(float x, float y)
 {
     RLGL.State.texcoordx = x;
     RLGL.State.texcoordy = y;
-}
-
-void rlTexCoord2f2(float x, float y)
-{
-    RLGL.State.texcoord2x = x;
-    RLGL.State.texcoord2y = y;
 }
 
 // Define one vertex (normal)
@@ -3029,7 +3021,6 @@ void rlUnloadRenderBatch(rlRenderBatch batch)
             glBindVertexArray(batch.vertexBuffer[i].vaoId);
             glDisableVertexAttribArray(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
             glDisableVertexAttribArray(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
-            glDisableVertexAttribArray(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2);
             glDisableVertexAttribArray(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
             glDisableVertexAttribArray(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR);
             glBindVertexArray(0);
@@ -3041,7 +3032,6 @@ void rlUnloadRenderBatch(rlRenderBatch batch)
         glDeleteBuffers(1, &batch.vertexBuffer[i].vboId[2]);
         glDeleteBuffers(1, &batch.vertexBuffer[i].vboId[3]);
         glDeleteBuffers(1, &batch.vertexBuffer[i].vboId[4]);
-        glDeleteBuffers(1, &batch.vertexBuffer[i].vboId[5]);
 
         // Delete VAOs from GPU (VRAM)
         if (RLGL.ExtSupported.vao) glDeleteVertexArrays(1, &batch.vertexBuffer[i].vaoId);
@@ -3182,11 +3172,6 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01], 2, GL_FLOAT, 0, 0, 0);
                 glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01]);
 
-                // Bind vertex attrib: texcoord2 (shader-location = 5)
-                glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[5]);
-                glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02], 2, GL_FLOAT, 0, 0, 0);
-                glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02]);
-
                 // Bind vertex attrib: normal (shader-location = 2)
                 glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[2]);
                 glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_NORMAL], 3, GL_FLOAT, 0, 0, 0);
@@ -3204,8 +3189,6 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
             glUniform4f(RLGL.State.currentShaderLocs[RL_SHADER_LOC_COLOR_DIFFUSE], 1.0f, 1.0f, 1.0f, 1.0f);
             glUniform1i(RLGL.State.currentShaderLocs[RL_SHADER_LOC_MAP_DIFFUSE], 0);  // Active default sampler2D: texture0
 
-            unsigned int target = (RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02] != -1) ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
-
             // Activate additional sampler textures
             // Those additional textures will be common for all draw calls of the batch
             for (int i = 0; i < RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++)
@@ -3213,7 +3196,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 if (RLGL.State.activeTextureId[i] > 0)
                 {
                     glActiveTexture(GL_TEXTURE0 + 1 + i);
-                    glBindTexture(target, RLGL.State.activeTextureId[i]);
+                    glBindTexture(GL_TEXTURE_2D, RLGL.State.activeTextureId[i]);
                 }
             }
 
@@ -3224,7 +3207,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
             for (int i = 0, vertexOffset = 0; i < batch->drawCounter; i++)
             {
                 // Bind current draw call texture, activated as GL_TEXTURE0 and bound to sampler2D texture0 by default
-                glBindTexture(target, batch->draws[i].textureId);
+                glBindTexture(GL_TEXTURE_2D, batch->draws[i].textureId);
 
                 if ((batch->draws[i].mode == RL_LINES) || (batch->draws[i].mode == RL_TRIANGLES)) glDrawArrays(batch->draws[i].mode, vertexOffset, batch->draws[i].vertexCount);
                 else
@@ -3249,7 +3232,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             }
 
-            glBindTexture(target, 0);    // Unbind textures
+            glBindTexture(GL_TEXTURE_2D, 0);    // Unbind textures
         }
 
         if (RLGL.ExtSupported.vao) glBindVertexArray(0); // Unbind VAO

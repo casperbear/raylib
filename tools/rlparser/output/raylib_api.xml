@@ -680,7 +680,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="608">
+    <Functions count="605">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -2795,14 +2795,6 @@
             <Param type="float" name="scale" desc="" />
             <Param type="Color" name="tint" desc="" />
         </Function>
-        <Function name="DrawBillboardFromArray" retType="void" paramCount="6" desc="">
-            <Param type="Camera" name="camera" desc="" />
-            <Param type="Texture2D" name="texture" desc="" />
-            <Param type="Vector3" name="position" desc="" />
-            <Param type="float" name="scale" desc="" />
-            <Param type="Color" name="tint" desc="" />
-            <Param type="int" name="slice" desc="" />
-        </Function>
         <Function name="DrawBillboardRec" retType="void" paramCount="6" desc="Draw a billboard texture defined by source">
             <Param type="Camera" name="camera" desc="" />
             <Param type="Texture2D" name="texture" desc="" />
@@ -2810,15 +2802,6 @@
             <Param type="Vector3" name="position" desc="" />
             <Param type="Vector2" name="size" desc="" />
             <Param type="Color" name="tint" desc="" />
-        </Function>
-        <Function name="DrawBillboardRecFromArray" retType="void" paramCount="7" desc="">
-            <Param type="Camera" name="camera" desc="" />
-            <Param type="Texture2D" name="texture" desc="" />
-            <Param type="Rectangle" name="source" desc="" />
-            <Param type="Vector3" name="position" desc="" />
-            <Param type="Vector2" name="size" desc="" />
-            <Param type="Color" name="tint" desc="" />
-            <Param type="int" name="slice" desc="" />
         </Function>
         <Function name="DrawBillboardPro" retType="void" paramCount="9" desc="Draw a billboard texture defined by source and rotation">
             <Param type="Camera" name="camera" desc="" />
@@ -2830,18 +2813,6 @@
             <Param type="Vector2" name="origin" desc="" />
             <Param type="float" name="rotation" desc="" />
             <Param type="Color" name="tint" desc="" />
-        </Function>
-        <Function name="DrawBillboardProFromArray" retType="void" paramCount="10" desc="">
-            <Param type="Camera" name="camera" desc="" />
-            <Param type="Texture2D" name="texture" desc="" />
-            <Param type="Rectangle" name="source" desc="" />
-            <Param type="Vector3" name="position" desc="" />
-            <Param type="Vector3" name="up" desc="" />
-            <Param type="Vector2" name="size" desc="" />
-            <Param type="Vector2" name="origin" desc="" />
-            <Param type="float" name="rotation" desc="" />
-            <Param type="Color" name="tint" desc="" />
-            <Param type="int" name="slice" desc="" />
         </Function>
         <Function name="UploadMesh" retType="void" paramCount="2" desc="Upload mesh vertex data in GPU and provide VAO/VBO ids">
             <Param type="Mesh *" name="mesh" desc="" />

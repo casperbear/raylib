@@ -3960,8 +3960,6 @@ void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle source, Vector
     rlSetTexture(texture.id);
     rlBegin(RL_QUADS);
 
-        rlTexCoord2f2(-1.0f, 0.0f);
-
         rlColor4ub(tint.r, tint.g, tint.b, tint.a);
         for (int i = 0; i < 4; i++)
         {

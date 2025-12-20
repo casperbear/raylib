@@ -393,7 +393,6 @@ typedef struct rlVertexBuffer {
 
     float *vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
     float *texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
-    float* texcoords2;          // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
     float *normals;             // Vertex normal (XYZ - 3 components per vertex) (shader-location = 2)
     unsigned char *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
 #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_33)
@@ -1582,13 +1581,6 @@ void rlVertex3f(float x, float y, float z)
     // Add current texcoord
     RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].texcoords[2*RLGL.State.vertexCounter] = RLGL.State.texcoordx;
     RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].texcoords[2*RLGL.State.vertexCounter + 1] = RLGL.State.texcoordy;
-
-    // Add current slice
-    if (RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].texcoords2 != NULL)
-    {
-        RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].texcoords2[2 * RLGL.State.vertexCounter] = RLGL.State.texcoord2x;
-        RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].texcoords2[2 * RLGL.State.vertexCounter + 1] = RLGL.State.texcoord2y;
-    }
 
     // Add current normal
     RLGL.currentBatch->vertexBuffer[RLGL.currentBatch->currentBuffer].normals[3*RLGL.State.vertexCounter] = RLGL.State.normalx;
@@ -2903,7 +2895,6 @@ rlRenderBatch rlLoadRenderBatch(int numBuffers, int bufferElements)
 
         batch.vertexBuffer[i].vertices = (float *)RL_CALLOC(bufferElements*3*4, sizeof(float));     // 3 float by vertex, 4 vertex by quad
         batch.vertexBuffer[i].texcoords = (float *)RL_CALLOC(bufferElements*2*4, sizeof(float));    // 2 float by texcoord, 4 texcoord by quad
-        batch.vertexBuffer[i].texcoords2 = (float*)RL_CALLOC(bufferElements*2*4, sizeof(float));    // slice
         batch.vertexBuffer[i].normals = (float *)RL_CALLOC(bufferElements*3*4, sizeof(float));      // 3 float by vertex, 4 vertex by quad
         batch.vertexBuffer[i].colors = (unsigned char *)RL_CALLOC(bufferElements*4*4, sizeof(unsigned char));   // 4 float by color, 4 colors by quad
 #if defined(GRAPHICS_API_OPENGL_33)
@@ -2964,13 +2955,6 @@ rlRenderBatch rlLoadRenderBatch(int numBuffers, int bufferElements)
         glBufferData(GL_ARRAY_BUFFER, bufferElements*2*4*sizeof(float), batch.vertexBuffer[i].texcoords, GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01]);
         glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD01], 2, GL_FLOAT, 0, 0, 0);
-
-        // Vertex texcoord buffer which we use for slice (shader-location = 5)
-        glGenBuffers(1, &batch.vertexBuffer[i].vboId[5]);
-        glBindBuffer(GL_ARRAY_BUFFER, batch.vertexBuffer[i].vboId[5]);
-        glBufferData(GL_ARRAY_BUFFER, bufferElements*2*4*sizeof(float), batch.vertexBuffer[i].texcoords2, GL_DYNAMIC_DRAW);
-        glEnableVertexAttribArray(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02]);
-        glVertexAttribPointer(RLGL.State.currentShaderLocs[RL_SHADER_LOC_VERTEX_TEXCOORD02], 2, GL_FLOAT, 0, 0, 0);
 
         // Vertex normal buffer (shader-location = 2)
         glGenBuffers(1, &batch.vertexBuffer[i].vboId[2]);
@@ -3065,7 +3049,6 @@ void rlUnloadRenderBatch(rlRenderBatch batch)
         // Free vertex arrays memory from CPU (RAM)
         RL_FREE(batch.vertexBuffer[i].vertices);
         RL_FREE(batch.vertexBuffer[i].texcoords);
-        RL_FREE(batch.vertexBuffer[i].texcoords2);
         RL_FREE(batch.vertexBuffer[i].normals);
         RL_FREE(batch.vertexBuffer[i].colors);
         RL_FREE(batch.vertexBuffer[i].indices);
@@ -3101,11 +3084,6 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
         glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[1]);
         glBufferSubData(GL_ARRAY_BUFFER, 0, RLGL.State.vertexCounter*2*sizeof(float), batch->vertexBuffer[batch->currentBuffer].texcoords);
         //glBufferData(GL_ARRAY_BUFFER, sizeof(float)*2*4*batch->vertexBuffer[batch->currentBuffer].elementCount, batch->vertexBuffer[batch->currentBuffer].texcoords, GL_DYNAMIC_DRAW); // Update all buffer
-
-        // Slice buffer
-        glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[5]);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, RLGL.State.vertexCounter*2*sizeof(float), batch->vertexBuffer[batch->currentBuffer].texcoords2);
-        //glBufferData(GL_ARRAY_BUFFER, sizeof(float)*2*4*batch->vertexBuffer[batch->currentBuffer].elementCount, batch->vertexBuffer[batch->currentBuffer].texcoords2, GL_DYNAMIC_DRAW); // Update all buffer
 
         // Normals buffer
         glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[2]);

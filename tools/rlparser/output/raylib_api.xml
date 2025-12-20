@@ -2211,14 +2211,14 @@
         <Function name="GenTextureMipmaps" retType="void" paramCount="1" desc="Generate GPU mipmaps for a texture">
             <Param type="Texture2D *" name="texture" desc="" />
         </Function>
-        <Function name="GenTextureArrayMipmaps" retType="void" paramCount="1" desc="">
+        <Function name="GenTextureArrayMipmaps" retType="void" paramCount="1" desc="Generate GPU mipmaps for a texture array">
             <Param type="Texture*" name="texture" desc="" />
         </Function>
         <Function name="GenTextureMipmapsEx" retType="void" paramCount="2" desc="Generate GPU mipmaps for a texture">
             <Param type="Texture2D*" name="texture" desc="" />
             <Param type="int" name="mipmapsDesired" desc="" />
         </Function>
-        <Function name="GenTextureArrayMipmapsEx" retType="void" paramCount="2" desc="">
+        <Function name="GenTextureArrayMipmapsEx" retType="void" paramCount="2" desc="Generate GPU mipmaps for a texture array">
             <Param type="Texture*" name="texture" desc="" />
             <Param type="int" name="mipmapsDesired" desc="" />
         </Function>
@@ -2226,7 +2226,7 @@
             <Param type="Texture2D" name="texture" desc="" />
             <Param type="int" name="filter" desc="" />
         </Function>
-        <Function name="SetTextureArrayFilter" retType="void" paramCount="2" desc="">
+        <Function name="SetTextureArrayFilter" retType="void" paramCount="2" desc="Set texture array scaling filter mode">
             <Param type="Texture2D" name="texture" desc="" />
             <Param type="int" name="filter" desc="" />
         </Function>

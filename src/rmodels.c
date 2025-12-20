@@ -3886,6 +3886,13 @@ void DrawBillboard(Camera camera, Texture2D texture, Vector3 position, float sca
     DrawBillboardRec(camera, texture, source, position, (Vector2){ scale*fabsf((float)source.width/source.height), scale }, tint);
 }
 
+void DrawBillboardFromArray(Camera camera, Texture2D texture, Vector3 position, float scale, Color tint, int slice)
+{
+    Rectangle source = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+
+    DrawBillboardRecFromArray(camera, texture, source, position, (Vector2) { scale* fabsf((float)source.width / source.height), scale }, tint, slice);
+}
+
 // Draw a billboard (part of a texture defined by a rectangle)
 void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector2 size, Color tint)
 {
@@ -3893,6 +3900,14 @@ void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle source, Vector
     Vector3 up = { 0.0f, 1.0f, 0.0f };
 
     DrawBillboardPro(camera, texture, source, position, up, size, Vector2Scale(size, 0.5), 0.0f, tint);
+}
+
+void DrawBillboardRecFromArray(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector2 size, Color tint, int slice)
+{
+    // NOTE: Billboard locked on axis-Y
+    Vector3 up = { 0.0f, 1.0f, 0.0f };
+
+    DrawBillboardProFromArray(camera, texture, source, position, up, size, Vector2Scale(size, 0.5), 0.0f, tint, slice);
 }
 
 // Draw a billboard with additional parameters

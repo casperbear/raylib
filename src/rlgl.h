@@ -659,12 +659,12 @@ RLAPI void rlDisableStatePointer(int vertexAttribType); // Disable attribute sta
 RLAPI void rlActiveTextureSlot(int slot);               // Select and active a texture slot
 RLAPI void rlEnableTexture(unsigned int id);            // Enable texture
 RLAPI void rlDisableTexture(void);                      // Disable texture
-RLAPI void rlEnableTextureArray(unsigned int id);
-RLAPI void rlDisableTextureArray(void);
+RLAPI void rlEnableTextureArray(unsigned int id);       // Enable texture array
+RLAPI void rlDisableTextureArray(void);                 // Disable texture array
 RLAPI void rlEnableTextureCubemap(unsigned int id);     // Enable texture cubemap
 RLAPI void rlDisableTextureCubemap(void);               // Disable texture cubemap
 RLAPI void rlTextureParameters(unsigned int id, int param, int value); // Set texture parameters (filter, wrap)
-RLAPI void rlTextureArrayParameters(unsigned int id, int param, int value);
+RLAPI void rlTextureArrayParameters(unsigned int id, int param, int value); // Set texture array parameters (filter, wrap)
 RLAPI void rlCubemapParameters(unsigned int id, int param, int value); // Set cubemap parameters (filter, wrap)
 
 // Shader state
@@ -773,9 +773,9 @@ RLAPI void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, uns
 RLAPI const char *rlGetPixelFormatName(unsigned int format);              // Get name string for pixel format
 RLAPI void rlUnloadTexture(unsigned int id);                              // Unload texture from GPU memory
 RLAPI void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int *mipmaps); // Generate mipmap data for selected texture
-RLAPI void rlGenTextureArrayMipmaps(unsigned int id, int width, int height, int format, int* mipmaps);
+RLAPI void rlGenTextureArrayMipmaps(unsigned int id, int width, int height, int format, int* mipmaps); // Generate mipmap data for selected texture array
 RLAPI void rlGenTextureMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired); // Generate mipmap data for selected texture
-RLAPI void rlGenTextureArrayMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired);
+RLAPI void rlGenTextureArrayMipmapsEx(unsigned int id, int width, int height, int format, int* mipmaps, int mipmapsDesired); // Generate mipmap data for selected texture array
 RLAPI void *rlReadTexturePixels(unsigned int id, int width, int height, int format); // Read texture pixel data
 RLAPI unsigned char *rlReadScreenPixels(int width, int height);           // Read screen pixel data (color buffer)
 
@@ -3310,13 +3310,13 @@ bool rlCheckRenderBatchLimit(int vCount)
 
         // Store current primitive drawing mode and texture id
         int currentMode = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode;
-        int currentTextureId = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId;
+        int currentTexture = RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId;
 
         rlDrawRenderBatch(RLGL.currentBatch);    // NOTE: Stereo rendering is checked inside
 
         // Restore state of last batch so we can continue adding vertices
         RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].mode = currentMode;
-        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = currentTextureId;
+        RLGL.currentBatch->draws[RLGL.currentBatch->drawCounter - 1].textureId = currentTexture;
     }
 #endif
 

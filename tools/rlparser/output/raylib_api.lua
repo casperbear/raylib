@@ -597,11 +597,6 @@ return {
         },
         {
           type = "int",
-          name = "slices",
-          description = ""
-        },
-        {
-          type = "int",
           name = "mipmaps",
           description = "Mipmap levels, 1 by default"
         },
@@ -5862,15 +5857,6 @@ return {
       }
     },
     {
-      name = "ImageMipmapsEx",
-      description = "Compute desired mipmap levels for a provided image",
-      returnType = "void",
-      params = {
-        {type = "Image*", name = "image"},
-        {type = "int", name = "mipmapsDesired"}
-      }
-    },
-    {
       name = "ImageDither",
       description = "Dither image data to 16bpp or lower (Floyd-Steinberg dithering)",
       returnType = "void",
@@ -6302,25 +6288,6 @@ return {
       }
     },
     {
-      name = "LoadTextureArrayFromImages",
-      description = "",
-      returnType = "Texture",
-      params = {
-        {type = "const Image*", name = "images"},
-        {type = "int", name = "count"}
-      }
-    },
-    {
-      name = "LoadTextureArrayFromAtlasImage",
-      description = "",
-      returnType = "Texture",
-      params = {
-        {type = "Image", name = "images"},
-        {type = "int", name = "rows"},
-        {type = "int", name = "columns"}
-      }
-    },
-    {
       name = "LoadTextureCubemap",
       description = "Load cubemap from image, multiple image cubemap layouts supported",
       returnType = "TextureCubemap",
@@ -6398,43 +6365,8 @@ return {
       }
     },
     {
-      name = "GenTextureArrayMipmaps",
-      description = "Generate GPU mipmaps for a texture array",
-      returnType = "void",
-      params = {
-        {type = "Texture*", name = "texture"}
-      }
-    },
-    {
-      name = "GenTextureMipmapsEx",
-      description = "Generate GPU mipmaps for a texture",
-      returnType = "void",
-      params = {
-        {type = "Texture2D*", name = "texture"},
-        {type = "int", name = "mipmapsDesired"}
-      }
-    },
-    {
-      name = "GenTextureArrayMipmapsEx",
-      description = "Generate GPU mipmaps for a texture array",
-      returnType = "void",
-      params = {
-        {type = "Texture*", name = "texture"},
-        {type = "int", name = "mipmapsDesired"}
-      }
-    },
-    {
       name = "SetTextureFilter",
       description = "Set texture scaling filter mode",
-      returnType = "void",
-      params = {
-        {type = "Texture2D", name = "texture"},
-        {type = "int", name = "filter"}
-      }
-    },
-    {
-      name = "SetTextureArrayFilter",
-      description = "Set texture array scaling filter mode",
       returnType = "void",
       params = {
         {type = "Texture2D", name = "texture"},
@@ -6447,15 +6379,6 @@ return {
       returnType = "void",
       params = {
         {type = "Texture2D", name = "texture"},
-        {type = "int", name = "wrap"}
-      }
-    },
-    {
-      name = "SetTextureArrayWrap",
-      description = "Set texture array wrapping mode",
-      returnType = "void",
-      params = {
-        {type = "Texture", name = "texture"},
         {type = "int", name = "wrap"}
       }
     },

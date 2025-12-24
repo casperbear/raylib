@@ -5232,6 +5232,130 @@ static int stbi__parse_png_file(stbi__png *z, int scan, int req_comp)
                // non-paletted image with tRNS -> source image has (constant) alpha
                ++s->img_n;
             }
+
+            // Force RGB to 0 if Alpha is 0 to clean "dirty alpha"
+            //if (s->img_out_n == 4) {
+            //    stbi__uint32 pixel_count = s->img_x * s->img_y;
+            //    if (z->depth == 8) {
+            //        stbi_uc* p = z->out;
+            //        for (i = 0; i < pixel_count; ++i) {
+            //            if (p[3] == 0) {
+            //                p[0] = 0;
+            //                p[1] = 0;
+            //                p[2] = 0;
+            //            }
+            //            p += 4;
+            //        }
+            //    }
+            //    else if (z->depth == 16) {
+            //        stbi__uint16* p = (stbi__uint16*)z->out;
+            //        for (i = 0; i < pixel_count; ++i) {
+            //            if (p[3] == 0) {
+            //                p[0] = 0;
+            //                p[1] = 0;
+            //                p[2] = 0;
+            //            }
+            //            p += 4;
+            //        }
+            //    }
+            //}
+            // Force RGB to 0 if Alpha is 0 (Clean Dirty Alpha)
+            // Modified: Only affects edges. Corners zeroed. Edges bleed from inner neighbor.
+            //if (s->img_out_n == 4 && z->depth == 8) {
+            //    stbi_uc* p = z->out;
+            //    int w = s->img_x;
+            //    int h = s->img_y;
+
+            //    // We need at least a 2x2 image to have distinct corners and edges with neighbors.
+            //    // If smaller, we just zero out transparent pixels safely.
+            //    if (w >= 2 && h >= 2) {
+            //        int x, y;
+            //        long idx, n_idx; // Index and Neighbor Index
+
+            //        // --- 1. HANDLE CORNERS (become 0,0,0,0) ---
+            //        long corners[4];
+            //        corners[0] = 0;                                   // Top-Left
+            //        corners[1] = (w - 1) * 4;                         // Top-Right
+            //        corners[2] = (long)(h - 1) * w * 4;               // Bottom-Left
+            //        corners[3] = ((long)(h - 1) * w + (w - 1)) * 4;   // Bottom-Right
+
+            //        for (i = 0; i < 4; ++i) {
+            //            idx = corners[i];
+            //            if (p[idx + 3] == 0) {
+            //                p[idx] = 0; p[idx + 1] = 0; p[idx + 2] = 0;
+            //            }
+            //        }
+
+            //        // --- 2. TOP EDGE (excluding corners) ---
+            //        // Row 0, Neighbor is Row 1
+            //        for (x = 1; x < w - 1; ++x) {
+            //            idx = x * 4;
+            //            if (p[idx + 3] == 0) {
+            //                n_idx = (x + w) * 4; // Pixel directly below
+            //                if (p[n_idx + 3] != 0) {
+            //                    p[idx] = p[n_idx]; p[idx + 1] = p[n_idx + 1]; p[idx + 2] = p[n_idx + 2];
+            //                }
+            //                else {
+            //                    p[idx] = 0; p[idx + 1] = 0; p[idx + 2] = 0;
+            //                }
+            //            }
+            //        }
+
+            //        // --- 3. BOTTOM EDGE (excluding corners) ---
+            //        // Row h-1, Neighbor is Row h-2
+            //        for (x = 1; x < w - 1; ++x) {
+            //            idx = ((long)(h - 1) * w + x) * 4;
+            //            if (p[idx + 3] == 0) {
+            //                n_idx = ((long)(h - 2) * w + x) * 4; // Pixel directly above
+            //                if (p[n_idx + 3] != 0) {
+            //                    p[idx] = p[n_idx]; p[idx + 1] = p[n_idx + 1]; p[idx + 2] = p[n_idx + 2];
+            //                }
+            //                else {
+            //                    p[idx] = 0; p[idx + 1] = 0; p[idx + 2] = 0;
+            //                }
+            //            }
+            //        }
+
+            //        // --- 4. LEFT EDGE (excluding corners) ---
+            //        // Col 0, Neighbor is Col 1
+            //        for (y = 1; y < h - 1; ++y) {
+            //            idx = (long)y * w * 4;
+            //            if (p[idx + 3] == 0) {
+            //                n_idx = ((long)y * w + 1) * 4; // Pixel to the right
+            //                if (p[n_idx + 3] != 0) {
+            //                    p[idx] = p[n_idx]; p[idx + 1] = p[n_idx + 1]; p[idx + 2] = p[n_idx + 2];
+            //                }
+            //                else {
+            //                    p[idx] = 0; p[idx + 1] = 0; p[idx + 2] = 0;
+            //                }
+            //            }
+            //        }
+
+            //        // --- 5. RIGHT EDGE (excluding corners) ---
+            //        // Col w-1, Neighbor is Col w-2
+            //        for (y = 1; y < h - 1; ++y) {
+            //            idx = ((long)y * w + (w - 1)) * 4;
+            //            if (p[idx + 3] == 0) {
+            //                n_idx = ((long)y * w + (w - 2)) * 4; // Pixel to the left
+            //                if (p[n_idx + 3] != 0) {
+            //                    p[idx] = p[n_idx]; p[idx + 1] = p[n_idx + 1]; p[idx + 2] = p[n_idx + 2];
+            //                }
+            //                else {
+            //                    p[idx] = 0; p[idx + 1] = 0; p[idx + 2] = 0;
+            //                }
+            //            }
+            //        }
+            //    }
+            //    else {
+            //        // Fallback for tiny images (1x1, 1xN) - just clean dirty alpha
+            //        stbi__uint32 pixel_count = w * h;
+            //        for (i = 0; i < pixel_count; ++i) {
+            //            if (p[3] == 0) { p[0] = 0; p[1] = 0; p[2] = 0; }
+            //            p += 4;
+            //        }
+            //    }
+            //}
+
             STBI_FREE(z->expanded); z->expanded = NULL;
             // end of PNG chunk, read and skip CRC
             stbi__get32be(s);

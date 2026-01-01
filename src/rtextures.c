@@ -4647,7 +4647,7 @@ void SetTextureFilter(Texture2D texture, int filter)
     }
 }
 
-void SetTextureArrayFilter(Texture2D texture, int filter)
+void SetTextureArrayFilter(Texture texture, int filter)
 {
     switch (filter)
     {

@@ -1877,13 +1877,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         } break;
         case WM_DPICHANGED:
         {
+            // Get current dpi scale factor
+            float scalex = HIWORD(wParam)/96.0f;
+            float scaley = LOWORD(wParam)/96.0f;
+            
             RECT *suggestedRect = (RECT *)lparam;
 
             // Never set the window size to anything other than the suggested rect here
             // Doing so can cause a window to stutter between monitors when transitioning between them
-            int result = (int)SetWindowPos(hwnd, NULL, suggestedRect->left, suggestedRect->top,
-                suggestedRect->right - suggestedRect->left, suggestedRect->bottom - suggestedRect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+            int result = (int)SetWindowPos(hwnd, NULL, 
+                suggestedRect->left, suggestedRect->top,
+                suggestedRect->right - suggestedRect->left, 
+                suggestedRect->bottom - suggestedRect->top, 
+                SWP_NOZORDER | SWP_NOACTIVATE);
+
             if (result == 0) TRACELOG(LOG_ERROR, "Failed to set window position [ERROR: %lu]", GetLastError());
+            
+            // TODO: Update screen data, render size, screen scaling, viewport...
 
         } break;
         case WM_SETCURSOR:
@@ -2039,8 +2049,7 @@ static void HandleWindowResize(HWND hwnd, int *width, int *height)
     // TODO: Update framebuffer on resize
     CORE.Window.currentFbo.width = (int)clientSize.cx;
     CORE.Window.currentFbo.height = (int)clientSize.cy;
-    //glViewport(0, 0, clientSize.cx, clientSize.cy);
-    //SetupFramebuffer(0, 0);
+    //SetupViewport(0, 0, clientSize.cx, clientSize.cy);
 
     SetupViewport(clientSize.cx, clientSize.cy);
     CORE.Window.resizedLastFrame = true;

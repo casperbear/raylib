@@ -30,7 +30,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2025 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2025-2026 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -1881,7 +1881,7 @@ int main(int argc, char *argv[])
             printf("// rexm [raylib examples manager] - A simple command-line tool to manage raylib examples  //\n");
             printf("// powered by raylib v5.6-dev                                                             //\n");
             printf("//                                                                                        //\n");
-            printf("// Copyright (c) 2025 Ramon Santamaria (@raysan5)                                         //\n");
+            printf("// Copyright (c) 2025-2026 Ramon Santamaria (@raysan5)                                    //\n");
             printf("//                                                                                        //\n");
             printf("////////////////////////////////////////////////////////////////////////////////////////////\n\n");
 
@@ -2840,7 +2840,7 @@ static void UpdateSourceMetadata(const char *exSrcPath, const rlExampleInfo *inf
         if (exTextUpdated[2] != NULL) exTextUpdatedPtr = exTextUpdated[2];
 
         // Update copyright message
-        // String: "*   Copyright (c) 2019-2025 Contributor Name (@github_user) and Ramon Santamaria (@raysan5)"
+        // String: "*   Copyright (c) 2019-2026 Contributor Name (@github_user) and Ramon Santamaria (@raysan5)"
         if (info->yearCreated == info->yearReviewed)
         {
             exTextUpdated[3] = TextReplaceBetween(exTextUpdatedPtr, "Copyright (c) ", ")",

@@ -70,7 +70,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2025 Ramon Santamaria (@raysan5) and contributors
+*   Copyright (c) 2013-2026 Ramon Santamaria (@raysan5) and contributors
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -320,7 +320,7 @@ typedef struct CoreData {
             char currentKeyState[MAX_KEYBOARD_KEYS]; // Registers current frame key state
             char previousKeyState[MAX_KEYBOARD_KEYS]; // Registers previous frame key state
 
-            // NOTE: Since key press logic involves comparing previous vs currrent key state, 
+            // NOTE: Since key press logic involves comparing previous vs currrent key state,
             // key repeats needs to be handled specially
             char keyRepeatInFrame[MAX_KEYBOARD_KEYS]; // Registers key repeats for current frame
 
@@ -350,11 +350,12 @@ typedef struct CoreData {
 
         } Mouse;
         struct {
-            int pointCount;                             // Number of touch points active
-            int pointId[MAX_TOUCH_POINTS];              // Point identifiers
-            Vector2 position[MAX_TOUCH_POINTS];         // Touch position on screen
-            char currentTouchState[MAX_TOUCH_POINTS];   // Registers current touch state
-            char previousTouchState[MAX_TOUCH_POINTS];  // Registers previous touch state
+            int pointCount;                                 // Number of touch points active
+            int pointId[MAX_TOUCH_POINTS];                  // Point identifiers
+            Vector2 position[MAX_TOUCH_POINTS];             // Touch position on screen
+            Vector2 previousPosition[MAX_TOUCH_POINTS];     // Previous touch position on screen
+            char currentTouchState[MAX_TOUCH_POINTS];       // Registers current touch state
+            char previousTouchState[MAX_TOUCH_POINTS];      // Registers previous touch state
 
         } Touch;
         struct {
@@ -817,7 +818,7 @@ int GetScreenHeight(void)
 int GetRenderWidth(void)
 {
     int width = 0;
-    
+
     if (CORE.Window.usingFbo) return CORE.Window.currentFbo.width;
     else width = CORE.Window.render.width;
 
@@ -1735,7 +1736,7 @@ int GetRandomValue(int min, int max)
     {
         TRACELOG(LOG_WARNING, "Invalid GetRandomValue() arguments, range should not be higher than %i", RAND_MAX);
     }
-    
+
     // NOTE: This one-line approach produces a non-uniform distribution,
     // as stated by Donald Knuth in the book The Art of Programming, so
     // using below approach for more uniform results
@@ -2257,7 +2258,7 @@ const char *GetApplicationDirectory(void)
 
 #if defined(_WIN32)
     int len = 0;
-    
+
     #if defined(UNICODE)
     unsigned short widePath[MAX_PATH];
     len = GetModuleFileNameW(NULL, (wchar_t *)widePath, MAX_PATH);
@@ -2265,7 +2266,7 @@ const char *GetApplicationDirectory(void)
     #else
     len = GetModuleFileNameA(NULL, appDir, MAX_PATH);
     #endif
-    
+
     if (len > 0)
     {
         for (int i = len; i >= 0; --i)
@@ -2282,7 +2283,7 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '\\';
     }
-    
+
 #elif defined(__linux__)
 
     unsigned int size = sizeof(appDir);
@@ -2304,7 +2305,7 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '/';
     }
-    
+
 #elif defined(__APPLE__)
 
     uint32_t size = sizeof(appDir);
@@ -2326,7 +2327,7 @@ const char *GetApplicationDirectory(void)
         appDir[0] = '.';
         appDir[1] = '/';
     }
-    
+
 #elif defined(__FreeBSD__)
 
     size_t size = sizeof(appDir);
@@ -2697,7 +2698,7 @@ unsigned char *DecodeDataBase64(const char *text, int *outputSize)
         ['0'] = 52, ['1'] = 53, ['2'] = 54, ['3'] = 55, ['4'] = 56, ['5'] = 57, ['6'] = 58, ['7'] = 59,
         ['8'] = 60, ['9'] = 61, ['+'] = 62, ['/'] = 63
     };
- 
+
     *outputSize = 0;
     if (text == NULL) return NULL;
 
@@ -3253,7 +3254,7 @@ bool ExportAutomationEventList(AutomationEventList list, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "# more info and bugs-report:  github.com/raysan5/raylib\n");
     byteCount += sprintf(txtData + byteCount, "# feedback and support:       ray[at]raylib.com\n");
     byteCount += sprintf(txtData + byteCount, "#\n");
-    byteCount += sprintf(txtData + byteCount, "# Copyright (c) 2023-2025 Ramon Santamaria (@raysan5)\n");
+    byteCount += sprintf(txtData + byteCount, "# Copyright (c) 2023-2026 Ramon Santamaria (@raysan5)\n");
     byteCount += sprintf(txtData + byteCount, "#\n\n");
 
     // Add events data
@@ -4104,22 +4105,20 @@ static void RecordAutomationEvent(void)
 
         if (currentEventList->count == currentEventList->capacity) return;    // Security check
 
-        // Event type: INPUT_TOUCH_POSITION
-        // TODO: It requires the id!
-        /*
-        if (((int)CORE.Input.Touch.currentPosition[id].x != (int)CORE.Input.Touch.previousPosition[id].x) ||
-            ((int)CORE.Input.Touch.currentPosition[id].y != (int)CORE.Input.Touch.previousPosition[id].y))
+        // Event type: INPUT_TOUCH_POSITION         
+        if (((int)CORE.Input.Touch.position[id].x != (int)CORE.Input.Touch.previousPosition[id].x) ||
+            ((int)CORE.Input.Touch.position[id].y != (int)CORE.Input.Touch.previousPosition[id].y))
         {
             currentEventList->events[currentEventList->count].frame = CORE.Time.frameCounter;
             currentEventList->events[currentEventList->count].type = INPUT_TOUCH_POSITION;
             currentEventList->events[currentEventList->count].params[0] = id;
-            currentEventList->events[currentEventList->count].params[1] = (int)CORE.Input.Touch.currentPosition[id].x;
-            currentEventList->events[currentEventList->count].params[2] = (int)CORE.Input.Touch.currentPosition[id].y;
+            currentEventList->events[currentEventList->count].params[1] = (int)CORE.Input.Touch.position[id].x;
+            currentEventList->events[currentEventList->count].params[2] = (int)CORE.Input.Touch.position[id].y;
 
             TRACELOG(LOG_INFO, "AUTOMATION: Frame: %i | Event type: INPUT_TOUCH_POSITION | Event parameters: %i, %i, %i", currentEventList->events[currentEventList->count].frame, currentEventList->events[currentEventList->count].params[0], currentEventList->events[currentEventList->count].params[1], currentEventList->events[currentEventList->count].params[2]);
             currentEventList->count++;
         }
-        */
+        
 
         if (currentEventList->count == currentEventList->capacity) return;    // Security check
     }
@@ -4241,7 +4240,7 @@ const char *TextFormat(const char *text, ...)
 
     char *currentBuffer = buffers[index];
     memset(currentBuffer, 0, MAX_TEXT_BUFFER_LENGTH);   // Clear buffer before using
-    
+
     if (text != NULL)
     {
         va_list args;

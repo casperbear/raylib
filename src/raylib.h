@@ -1602,7 +1602,7 @@ RLAPI void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize
 RLAPI void UnloadMesh(Mesh mesh);                                                           // Unload mesh data from CPU and GPU
 // DrawMesh is updated to support texture array (DrawMesh itself doesn't care, but the idea is to pass vertex's slice in texcoords2.x)
 RLAPI void DrawMesh(Mesh mesh, Material material, Matrix transform);                        // Draw a 3d mesh with material and transform
-// DrawMesh is updated to support texture array (DrawMeshInstanced itself doesn't care, but the idea is to pass instance's slice in transforms.m3)
+// DrawMeshInstanced is updated to support texture array (DrawMeshInstanced itself doesn't care, but the idea is to pass instance's slice in transforms.m3)
 RLAPI void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances); // Draw multiple mesh instances with material and different transforms
 RLAPI BoundingBox GetMeshBoundingBox(Mesh mesh);                                            // Compute mesh bounding box limits
 RLAPI void GenMeshTangents(Mesh *mesh);                                                     // Compute mesh tangents

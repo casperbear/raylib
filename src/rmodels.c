@@ -42,14 +42,10 @@
 
 #include "raylib.h"         // Declares module functions
 
-// Check if config flags have been externally provided on compilation line
-#if !defined(EXTERNAL_CONFIG_FLAGS)
-    #include "config.h"     // Defines module configuration flags
-#endif
+#include "config.h"         // Defines module configuration flags
 
 #if defined(SUPPORT_MODULE_RMODELS)
 
-#include "utils.h"          // Required for: TRACELOG(), LoadFileData(), LoadFileText(), SaveFileText()
 #include "rlgl.h"           // OpenGL abstraction layer to OpenGL 1.1, 2.1, 3.3+ or ES2
 #include "raymath.h"        // Required for: Vector3, Quaternion and Matrix functionality
 
@@ -7049,8 +7045,8 @@ static ModelAnimation *LoadModelAnimationsM3D(const char *fileName, int *animCou
         else TRACELOG(LOG_INFO, "MODEL: [%s] M3D data loaded successfully: %i animations, %i bones, %i skins", fileName,
             m3d->numaction, m3d->numbone, m3d->numskin);
 
-        // No animation or bone+skin?
-        if (!m3d->numaction || !m3d->numbone || !m3d->numskin)
+        // No animation or bones, exit out. skins are not required because some people use one animation for N models
+        if (!m3d->numaction || !m3d->numbone)
         {
             m3d_free(m3d);
             UnloadFileData(fileData);

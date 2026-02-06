@@ -58,7 +58,7 @@ int main(void)
     
     int ballCount = 1;
     Ball *grabbedBall = NULL;   // A pointer to the current ball that is grabbed
-    Vector2 pressOffset = {0};  // Mouse press offset relative to the ball that grabbedd
+    Vector2 pressOffset = { 0 };  // Mouse press offset relative to the ball that grabbedd
 
     float gravity = 100;        // World gravity
 
@@ -139,14 +139,14 @@ int main(void)
             Ball *ball = &balls[i];
 
             // The ball is not grabbed
-            if (!ball->grabbed) 
+            if (!ball->grabbed)
             {
                 // Ball repositioning using the velocity
                 ball->pos.x += ball->vel.x * delta;
                 ball->pos.y += ball->vel.y * delta;
 
                 // Does the ball hit the screen right boundary?
-                if ((ball->pos.x + ball->radius) >= screenWidth) 
+                if ((ball->pos.x + ball->radius) >= screenWidth)
                 {
                     ball->pos.x = screenWidth - ball->radius; // Ball repositioning
                     ball->vel.x = -ball->vel.x*ball->elasticity;  // Elasticity makes the ball lose 10% of its velocity on hit
@@ -159,12 +159,12 @@ int main(void)
                 }
 
                 // The same for y axis
-                if ((ball->pos.y + ball->radius) >= screenHeight) 
+                if ((ball->pos.y + ball->radius) >= screenHeight)
                 {
                     ball->pos.y = screenHeight - ball->radius;
                     ball->vel.y = -ball->vel.y*ball->elasticity;
                 } 
-                else if ((ball->pos.y - ball->radius) <= 0) 
+                else if ((ball->pos.y - ball->radius) <= 0)
                 { 
                     ball->pos.y = ball->radius;
                     ball->vel.y = -ball->vel.y*ball->elasticity;

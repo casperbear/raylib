@@ -280,15 +280,16 @@ void ToggleBorderlessWindowed(void)
         // 2. The style unset handles the possibility of a width="value%" like on the default shell.html file
         EM_ASM
         (
+            const canvasId = UTF8ToString($0);
             setTimeout(function()
             {
                 Module.requestFullscreen(false, true);
                 setTimeout(function()
                 {
-                    canvas.style.width="unset";
+                    document.querySelector(canvasId).style.width="unset";
                 }, 100);
             }, 100);
-        );
+        , platform.canvasId);
         FLAG_SET(CORE.Window.flags, FLAG_BORDERLESS_WINDOWED_MODE);
     }
 }
@@ -874,7 +875,8 @@ void SwapScreenBuffer(void)
         //const canvas = Module['canvas'];
         const ctx = canvas.getContext('2d');
 
-        if (!Module.__img || (Module.__img.width !== width) || (Module.__img.height !== height)) {
+        if (!Module.__img || (Module.__img.width !== width) || (Module.__img.height !== height))
+        {
             Module.__img = ctx.createImageData(width, height);
         }
 

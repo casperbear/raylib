@@ -290,6 +290,9 @@ typedef struct tagBITMAPINFOHEADER {
 #ifndef AUDIO_DEVICE_SAMPLE_RATE
     #define AUDIO_DEVICE_SAMPLE_RATE           0    // Device output sample rate
 #endif
+#ifndef AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES
+    #define AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES 0    // Device latency. 0 defaults to 10ms
+#endif
 
 #ifndef MAX_AUDIO_BUFFER_POOL_CHANNELS
     #define MAX_AUDIO_BUFFER_POOL_CHANNELS    16    // Audio pool channels
@@ -349,7 +352,7 @@ struct rAudioBuffer {
 
     float volume;                   // Audio buffer volume
     float pitch;                    // Audio buffer pitch
-    float pan;                      // Audio buffer pan (0.0f to 1.0f)
+    float pan;                      // Audio buffer pan (-1.0f to 1.0f)
 
     bool playing;                   // Audio buffer state: AUDIO_PLAYING
     bool paused;                    // Audio buffer state: AUDIO_PAUSED
@@ -477,12 +480,12 @@ void InitAudioDevice(void)
     config.playback.pDeviceID = NULL;  // NULL for the default playback AUDIO.System.device
     config.playback.format = AUDIO_DEVICE_FORMAT;
     config.playback.channels = AUDIO_DEVICE_CHANNELS;
-    config.capture.pDeviceID = NULL;  // NULL for the default capture AUDIO.System.device
-    config.capture.format = ma_format_s16;
-    config.capture.channels = 1;
     config.sampleRate = AUDIO_DEVICE_SAMPLE_RATE;
+    config.periodSizeInFrames = AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES;
     config.dataCallback = OnSendAudioDataToDevice;
     config.pUserData = NULL;
+    config.noPreSilencedOutputBuffer = true;    // raylib pre-silences the output buffer manually
+    config.noFixedSizedCallback = true;         // raylib does not require fixed sized callback guarantees. This bypasses an internal intermediary buffer
 
     result = ma_device_init(&AUDIO.System.context, &config, &AUDIO.System.device);
     if (result != MA_SUCCESS)
@@ -2374,6 +2377,12 @@ static void OnLog(void *pUserData, ma_uint32 level, const char *pMessage)
 // Reads audio data from an AudioBuffer object in internal format
 static ma_uint32 ReadAudioBufferFramesInInternalFormat(AudioBuffer *audioBuffer, void *framesOut, ma_uint32 frameCount)
 {
+    // Don't read anything if the sound is not playing
+    if (!audioBuffer->playing)
+    {
+        return 0;
+    }
+
     // Using audio buffer callback
     if (audioBuffer->callback)
     {
@@ -2519,18 +2528,20 @@ static ma_uint32 ReadAudioBufferFramesInMixingFormat(AudioBuffer *audioBuffer, f
             {
                 estimatedInputFrameCount = inputBufferFrameCap;
             }
+            
+            ma_uint32 inputFramesInInternalFormatCount = ReadAudioBufferFramesInInternalFormat(audioBuffer, inputBuffer, estimatedInputFrameCount);
 
-            estimatedInputFrameCount = ReadAudioBufferFramesInInternalFormat(audioBuffer, inputBuffer, estimatedInputFrameCount);
-
-            ma_uint64 inputFramesProcessedThisIteration = estimatedInputFrameCount;
+            ma_uint64 inputFramesProcessedThisIteration = inputFramesInInternalFormatCount;
             ma_uint64 outputFramesProcessedThisIteration = outputFramesToProcessThisIteration;
             ma_data_converter_process_pcm_frames(&audioBuffer->converter, inputBuffer, &inputFramesProcessedThisIteration, runningFramesOut, &outputFramesProcessedThisIteration);
 
-            if (estimatedInputFrameCount > inputFramesProcessedThisIteration)
+            totalOutputFramesProcessed += (ma_uint32)outputFramesProcessedThisIteration;
+
+            if (inputFramesInInternalFormatCount > inputFramesProcessedThisIteration)
             {
                 // Getting here means the estimated input frame count was overestimated. The residual needs
                 // be stored for later use.
-                ma_uint64 residualFrameCount = estimatedInputFrameCount - inputFramesProcessedThisIteration;
+                ma_uint64 residualFrameCount = inputFramesInInternalFormatCount - inputFramesProcessedThisIteration;
 
                 // A safety check to make sure the capacity of the residual cache is not exceeded.
                 if (residualFrameCount > AUDIO_BUFFER_RESIDUAL_CAPACITY)
@@ -2542,7 +2553,9 @@ static ma_uint32 ReadAudioBufferFramesInMixingFormat(AudioBuffer *audioBuffer, f
                 audioBuffer->converterResidualCount = residualFrameCount;
             }
 
-            totalOutputFramesProcessed += (ma_uint32)outputFramesProcessedThisIteration;
+            if (inputFramesInInternalFormatCount < estimatedInputFrameCount) {
+                break;  // Reached the end of the sound
+            }
         }
     }
 

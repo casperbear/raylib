@@ -156,8 +156,6 @@ static PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = NULL;
 // Flags that have no operations to perform during an update
 #define FLAG_MASK_NO_UPDATE     (FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT)
 
-#define WM_APP_UPDATE_WINDOW_SIZE (WM_APP + 1)
-
 #define WGL_DRAW_TO_WINDOW_ARB              0x2001
 #define WGL_ACCELERATION_ARB                0x2003
 #define WGL_SUPPORT_OPENGL_ARB              0x2010
@@ -426,9 +424,7 @@ static bool UpdateWindowSize(int mode, HWND hwnd, int width, int height, unsigne
     else swpFlags |= SWP_NOMOVE;
 
     // WARNING: This code must be called after swInit() has been called, after InitPlatform() in [rcore]
-    //RECT rc = {0, 0, desired.cx, desired.cy};
-    //AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, 0);
-    //SetWindowPos(hwnd, NULL, windowPos.x, windowPos.y, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
+    SetWindowPos(hwnd, NULL, windowPos.x, windowPos.y, windowSize.cx, windowSize.cy, SWP_NOMOVE | SWP_NOZORDER);
 
     return true;
 }
@@ -976,25 +972,40 @@ void SetWindowMonitor(int monitor)
 // Set window minimum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMinSize(int width, int height)
 {
-    TRACELOG(LOG_WARNING, "SetWindowMinSize not implemented");
+    if ((width > CORE.Window.screenMax.width) || (height > CORE.Window.screenMax.height))
+    {
+        TRACELOG(LOG_WARNING, "WIN32: WINDOW: Cannot set minimum screen size higher than the maximum");
+        return;
+    }
 
     CORE.Window.screenMin.width = width;
     CORE.Window.screenMin.height = height;
+
+    SetWindowSize(platform.appScreenWidth, platform.appScreenHeight);
 }
 
 // Set window maximum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMaxSize(int width, int height)
 {
-    TRACELOG(LOG_WARNING, "SetWindowMaxSize not implemented");
+    if ((width < CORE.Window.screenMin.width) || (height < CORE.Window.screenMin.height))
+    {
+        TRACELOG(LOG_WARNING, "WIN32: WINDOW: Cannot set maximum screen size lower than the minimum");
+        return;
+    }
 
     CORE.Window.screenMax.width = width;
     CORE.Window.screenMax.height = height;
+    
+    SetWindowSize(platform.appScreenWidth, platform.appScreenHeight);
 }
 
 // Set window dimensions
 void SetWindowSize(int width, int height)
 {
-    TRACELOG(LOG_WARNING, "SetWindowSize not implemented");
+    int screenWidth = fmaxf(CORE.Window.screenMin.width, fminf(CORE.Window.screenMax.width, width));
+    int screenHeight = fmaxf(CORE.Window.screenMin.height, fminf(CORE.Window.screenMax.height, height));
+
+    UpdateWindowSize(1, platform.hwnd, screenWidth, screenHeight, platform.desiredFlags);
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
@@ -1233,9 +1244,9 @@ double GetTime(void)
 }
 
 // Open URL with default system browser (if available)
-// NOTE: This function is only safe to use if you control the URL given
+// NOTE: This function is only safe to use if the provided URL is safe
 // A user could craft a malicious string performing another action
-// Only call this function yourself not with user input or make sure to check the string yourself
+// Avoid calling this function with user input non-validated strings
 // REF: https://github.com/raysan5/raylib/issues/686
 void OpenURL(const char *url)
 {
@@ -1494,7 +1505,8 @@ int InitPlatform(void)
 
     // NOTE: From this point CORE.Window.flags should always reflect the actual state of the window
     CORE.Window.flags = FLAG_WINDOW_HIDDEN | (platform.desiredFlags & FLAG_MASK_NO_UPDATE);
-
+    CORE.Window.screenMax.width = 9999;
+    CORE.Window.screenMax.height = 9999;
 /*
     // TODO: Review SetProcessDpiAwarenessContext()
     // NOTE: SetProcessDpiAwarenessContext() requires Windows 10, version 1703 and shcore.lib linkage
@@ -1747,13 +1759,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         } break;
         case WM_SIZING:
         {
-            if (CORE.Window.flags & FLAG_WINDOW_RESIZABLE)
-            {
-                // TODO: Enforce min/max size
-            }
-            else TRACELOG(LOG_WARNING, "WIN32: WINDOW: Trying to resize a non-resizable window");
+            if (!(CORE.Window.flags & FLAG_WINDOW_RESIZABLE))
+                TRACELOG(LOG_WARNING, "WIN32: WINDOW: Trying to resize a non-resizable window");
 
             result = TRUE;
+        } break;
+        case WM_GETMINMAXINFO:
+        {
+            DWORD style = MakeWindowStyle(platform.desiredFlags);
+            SIZE maxClientSize = { CORE.Window.screenMax.width, CORE.Window.screenMax.height };
+            SIZE maxWindowSize = CalcWindowSize(96, maxClientSize, style);
+            SIZE minClientSize = { CORE.Window.screenMin.width, CORE.Window.screenMin.height };
+            SIZE minWindowSize = CalcWindowSize(96, minClientSize, style);
+            
+            LPMINMAXINFO lpmmi = (LPMINMAXINFO) lparam;
+            lpmmi->ptMaxSize.x = maxWindowSize.cx;
+            lpmmi->ptMaxSize.y = maxWindowSize.cy;
+            lpmmi->ptMaxTrackSize.x = maxWindowSize.cx;
+            lpmmi->ptMaxTrackSize.y = maxWindowSize.cy;
+            lpmmi->ptMinTrackSize.x = minWindowSize.cx;
+            lpmmi->ptMinTrackSize.y = minWindowSize.cy;
         } break;
         case WM_STYLECHANGING:
         {
@@ -1839,9 +1864,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         } break;
         case WM_SIZE:
         {
-            // WARNING: Don't trust the docs, they say you won't get this message if you don't call DefWindowProc
-            // in response to WM_WINDOWPOSCHANGED but looks like when a window is created you'll get this
-            // message without getting WM_WINDOWPOSCHANGED
+            // WARNING: Don't trust the docs, they say this message can not be obtained if not calling DefWindowProc()
+            // in response to WM_WINDOWPOSCHANGED but looks like when a window is created, 
+            // this message can be obtained without getting WM_WINDOWPOSCHANGED
             HandleWindowResize(hwnd, &platform.appScreenWidth, &platform.appScreenHeight);
         } break;
         //case WM_MOVE
@@ -1960,10 +1985,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         } break;
         case WM_MOUSEWHEEL: CORE.Input.Mouse.currentWheelMove.y = ((float)GET_WHEEL_DELTA_WPARAM(wparam))/WHEEL_DELTA; break;
         case WM_MOUSEHWHEEL: CORE.Input.Mouse.currentWheelMove.x = ((float)GET_WHEEL_DELTA_WPARAM(wparam))/WHEEL_DELTA; break;
-        case WM_APP_UPDATE_WINDOW_SIZE:
-        {
-            //UpdateWindowSize(UPDATE_WINDOW_NORMAL, hwnd, platform.appScreenWidth, platform.appScreenHeight, CORE.Window.flags);
-        } break;
 
         default: result = DefWindowProcW(hwnd, msg, wparam, lparam); // Message passed directly for execution (default behaviour)
     }
@@ -2045,12 +2066,10 @@ static void HandleWindowResize(HWND hwnd, int *width, int *height)
     GetClientRect(hwnd, &rect);
     SIZE clientSize = { rect.right, rect.bottom };
 
-    // TODO: Update framebuffer on resize
     CORE.Window.currentFbo.width = (int)clientSize.cx;
     CORE.Window.currentFbo.height = (int)clientSize.cy;
-    //SetupViewport(0, 0, clientSize.cx, clientSize.cy);
-
     SetupViewport(clientSize.cx, clientSize.cy);
+
     CORE.Window.resizedLastFrame = true;
     float dpiScale = ((float)GetDpiForWindow(hwnd))/96.0f;
     bool highdpi = !!(CORE.Window.flags & FLAG_WINDOW_HIGHDPI);
@@ -2168,10 +2187,10 @@ static unsigned SanitizeFlags(int mode, unsigned flags)
 // window. This function will continue to perform these update operations so long as
 // the state continues to change
 //
-// This design takes care of many odd corner cases. For example, if you want to restore
-// a window that was previously maximized AND minimized and you want to remove both these
-// flags, you actually need to call ShowWindow with SW_RESTORE twice. Another example is
-// if you have a maximized window, if the undecorated flag is modified then the window style
+// This design takes care of many odd corner cases. For example, in case of restoring
+// a window that was previously maximized AND minimized and those two flags need to be removed, 
+// ShowWindow with SW_RESTORE twice need to bee actually calleed. Another example is
+// wheen having a maximized window, if the undecorated flag is modified then the window style
 // needs to be updated, but updating the style would mean the window size would change
 // causing the window to lose its Maximized state which would mean the window size
 // needs to be updated, followed by the update of window style, a second time, to restore that maximized

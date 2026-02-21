@@ -1030,6 +1030,11 @@ return {
       description = "ModelAnimation",
       fields = {
         {
+          type = "char[32]",
+          name = "name",
+          description = "Animation name"
+        },
+        {
           type = "int",
           name = "boneCount",
           description = "Number of bones"
@@ -1048,11 +1053,6 @@ return {
           type = "Transform **",
           name = "framePoses",
           description = "Poses array by frame"
-        },
-        {
-          type = "char[32]",
-          name = "name",
-          description = "Animation name"
         }
       }
     },
@@ -7810,6 +7810,27 @@ return {
         {type = "Model", name = "model"},
         {type = "ModelAnimation", name = "anim"},
         {type = "int", name = "frame"}
+      }
+    },
+    {
+      name = "UpdateModelAnimationBonesLerp",
+      description = "Update model animation mesh bone matrices with interpolation between two poses(GPU skinning)",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"},
+        {type = "ModelAnimation", name = "animA"},
+        {type = "int", name = "frameA"},
+        {type = "ModelAnimation", name = "animB"},
+        {type = "int", name = "frameB"},
+        {type = "float", name = "value"}
+      }
+    },
+    {
+      name = "UpdateModelVertsToCurrentBones",
+      description = "Update model vertices according to mesh bone matrices (CPU)",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"}
       }
     },
     {

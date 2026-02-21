@@ -17,19 +17,23 @@
 *           - Linux (X11/Wayland desktop mode)
 *           - macOS/OSX (x64, arm64)
 *           - Others (not tested)
-*       > PLATFORM_WEB_RGFW:
+*       > PLATFORM_DESKTOP_WIN32 (native Win32):
+*           - Windows (Win32, Win64)
+*       > PLATFORM_WEB (GLFW + Emscripten):
 *           - HTML5 (WebAssembly)
-*       > PLATFORM_WEB:
+*       > PLATFORM_WEB_EMSCRIPTEN (Emscripten):
 *           - HTML5 (WebAssembly)
-*       > PLATFORM_DRM:
+*       > PLATFORM_WEB_RGFW (Emscripten):
+*           - HTML5 (WebAssembly)
+*       > PLATFORM_DRM (native DRM):
 *           - Raspberry Pi 0-5 (DRM/KMS)
 *           - Linux DRM subsystem (KMS mode)
-*       > PLATFORM_ANDROID:
+*           - Embedded devices (with GPU)
+*       > PLATFORM_ANDROID (native NDK):
 *           - Android (ARM, ARM64)
-*       > PLATFORM_DESKTOP_WIN32 (Native Win32):
-*           - Windows (Win32, Win64)
 *       > PLATFORM_MEMORY
 *           - Memory framebuffer output, using software renderer, no OS required
+*
 *   CONFIGURATION:
 *       #define SUPPORT_DEFAULT_FONT (default)
 *           Default font is loaded on window initialization to be available for the user to render simple text
@@ -277,7 +281,7 @@
     #define FILE_FILTER_TAG_DIR_ONLY   "DIR*"       // Filter to include directories on directory scan
 #endif                                              // NOTE: Used in ScanDirectoryFiles(), LoadDirectoryFilesEx() and GetDirectoryFileCountEx()
 
-// Flags operation macros
+// Flags bitwise operation macros
 #define FLAG_SET(n, f) ((n) |= (f))
 #define FLAG_CLEAR(n, f) ((n) &= ~(f))
 #define FLAG_TOGGLE(n, f) ((n) ^= (f))
@@ -678,8 +682,6 @@ void InitWindow(int width, int height, const char *title)
     // Initialize window data
     CORE.Window.screen.width = width;
     CORE.Window.screen.height = height;
-    CORE.Window.currentFbo.width = CORE.Window.screen.width;
-    CORE.Window.currentFbo.height = CORE.Window.screen.height;
 
     CORE.Window.eventWaiting = false;
     CORE.Window.screenScale = MatrixIdentity(); // No draw scaling required by default
@@ -705,10 +707,10 @@ void InitWindow(int width, int height, const char *title)
 
     // Initialize rlgl default data (buffers and shaders)
     // NOTE: Current fbo size stored as globals in rlgl for convenience
-    rlglInit(CORE.Window.currentFbo.width, CORE.Window.currentFbo.height);
+    rlglInit(CORE.Window.render.width, CORE.Window.render.height);
 
     // Setup default viewport
-    SetupViewport(CORE.Window.currentFbo.width, CORE.Window.currentFbo.height);
+    SetupViewport(CORE.Window.render.width, CORE.Window.render.height);
 
 #if defined(SUPPORT_MODULE_RTEXT)
     #if defined(SUPPORT_DEFAULT_FONT)
@@ -2771,6 +2773,8 @@ FilePathList LoadDirectoryFilesEx(const char *basePath, const char *filter, bool
 
     if (DirectoryExists(basePath)) // It's a directory
     {
+        if ((filter != NULL) && (filter[0] == '\0')) filter = NULL;
+
         // SCAN 1: Count files
         unsigned int fileCounter = GetDirectoryFileCountEx(basePath, filter, scanSubdirs);
 

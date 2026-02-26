@@ -180,6 +180,11 @@ typedef struct tagBITMAPINFOHEADER {
 #include <stdio.h>                      // Required for: FILE, fopen(), fclose(), fread()
 #include <string.h>                     // Required for: strcmp() [Used in IsFileExtension(), LoadWaveFromMemory(), LoadMusicStreamFromMemory()]
 
+#if defined(PLATFORM_ANDROID)
+    FILE *android_fopen(const char *fileName, const char *mode);
+    #define fopen(name, mode) android_fopen(name, mode)
+#endif
+
 #if defined(RAUDIO_STANDALONE)
     #ifndef TRACELOG
         #define TRACELOG(level, ...)    printf(__VA_ARGS__)
@@ -2378,10 +2383,7 @@ static void OnLog(void *pUserData, ma_uint32 level, const char *pMessage)
 static ma_uint32 ReadAudioBufferFramesInInternalFormat(AudioBuffer *audioBuffer, void *framesOut, ma_uint32 frameCount)
 {
     // Don't read anything if the sound is not playing
-    if (!audioBuffer->playing)
-    {
-        return 0;
-    }
+    if (!audioBuffer->playing) return 0;
 
     // Using audio buffer callback
     if (audioBuffer->callback)
@@ -2490,7 +2492,7 @@ static ma_uint32 ReadAudioBufferFramesInMixingFormat(AudioBuffer *audioBuffer, f
     {
         float *runningFramesOut = framesOut + (totalOutputFramesProcessed*audioBuffer->converter.channelsOut);
         ma_uint64 outputFramesToProcessThisIteration = frameCount - totalOutputFramesProcessed;
-        ma_uint64 inputFramesToProcessThisIteration = 0;
+        //ma_uint64 inputFramesToProcessThisIteration = 0;
         
         // Process any residual input frames from the previous read first.
         if (audioBuffer->converterResidualCount > 0)
@@ -2519,16 +2521,9 @@ static ma_uint32 ReadAudioBufferFramesInMixingFormat(AudioBuffer *audioBuffer, f
             // When the guess is overestimated, that's when it gets more complicated. In this case, any overflow
             // needs to be stored in a buffer for later processing by the next read.
             ma_uint32 estimatedInputFrameCount = (ma_uint32)(((float)audioBuffer->converter.resampler.sampleRateIn / audioBuffer->converter.resampler.sampleRateOut) * outputFramesToProcessThisIteration);
-            if (estimatedInputFrameCount == 0)
-            {
-                estimatedInputFrameCount = 1;    // Make sure at least one input frame is read.
-            }
+            if (estimatedInputFrameCount == 0) estimatedInputFrameCount = 1;    // Make sure at least one input frame is read.
+            if (estimatedInputFrameCount > inputBufferFrameCap) estimatedInputFrameCount = inputBufferFrameCap;
 
-            if (estimatedInputFrameCount > inputBufferFrameCap)
-            {
-                estimatedInputFrameCount = inputBufferFrameCap;
-            }
-            
             ma_uint32 inputFramesInInternalFormatCount = ReadAudioBufferFramesInInternalFormat(audioBuffer, inputBuffer, estimatedInputFrameCount);
 
             ma_uint64 inputFramesProcessedThisIteration = inputFramesInInternalFormatCount;
@@ -2553,9 +2548,7 @@ static ma_uint32 ReadAudioBufferFramesInMixingFormat(AudioBuffer *audioBuffer, f
                 audioBuffer->converterResidualCount = residualFrameCount;
             }
 
-            if (inputFramesInInternalFormatCount < estimatedInputFrameCount) {
-                break;  // Reached the end of the sound
-            }
+            if (inputFramesInInternalFormatCount < estimatedInputFrameCount) break;  // Reached the end of the sound
         }
     }
 

@@ -175,15 +175,15 @@
 //#define RL_DEFAULT_BATCH_MAX_TEXTURE_UNITS     4      // Maximum number of textures units that can be activated on batch drawing (SetShaderValueTexture())
 //#define RL_MAX_MATRIX_STACK_SIZE              32      // Maximum size of internal Matrix stack
 //#define RL_MAX_SHADER_LOCATIONS               32      // Maximum number of shader locations supported
-//#define RL_CULL_DISTANCE_NEAR                  0.05   // Default projection matrix near cull distance
-//#define RL_CULL_DISTANCE_FAR                4000.0    // Default projection matrix far cull distance
+//#define RL_CULL_DISTANCE_NEAR                  0.125   // Default projection matrix near cull distance
+//#define RL_CULL_DISTANCE_FAR                2000.0    // Default projection matrix far cull distance
 
 #define RL_MAX_MATRIX_STACK_SIZE              32      // Maximum size of internal Matrix stack
 
 #define RL_MAX_SHADER_LOCATIONS               32      // Maximum number of shader locations supported
 
-#define RL_CULL_DISTANCE_NEAR                  0.05   // Default projection matrix near cull distance
-#define RL_CULL_DISTANCE_FAR                4000.0    // Default projection matrix far cull distance
+#define RL_CULL_DISTANCE_NEAR                  0.125   // Default projection matrix near cull distance
+#define RL_CULL_DISTANCE_FAR                2000.0    // Default projection matrix far cull distance
 
 // Default shader vertex attribute locations
 //#define RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION    0

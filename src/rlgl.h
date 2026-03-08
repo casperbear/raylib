@@ -37,13 +37,13 @@
 *           If not defined, the library is in header only mode and can be included in other headers
 *           or source files without problems. But only ONE file should hold the implementation
 *
-*       #define RLGL_SHOW_GL_DETAILS_INFO
+*       #if RLGL_SHOW_GL_DETAILS_INFO
 *           Show OpenGL extensions and capabilities detailed logs on init
 *
-*       #define RLGL_ENABLE_OPENGL_DEBUG_CONTEXT
+*       #if RLGL_ENABLE_OPENGL_DEBUG_CONTEXT
 *           Enable debug context (only available on OpenGL 4.3)
 *
-*       rlgl capabilities could be customized just defining some internal
+*       rlgl capabilities could be customized defining some internal
 *       values before library inclusion (default values listed):
 *
 *       #define RL_DEFAULT_BATCH_BUFFER_ELEMENTS   8192    // Default internal render batch elements limits
@@ -396,7 +396,7 @@ typedef struct rlVertexBuffer {
 
 // Draw call type
 // NOTE: Only texture changes register a new draw, other state-change-related elements are not
-// used at this moment (vaoId, shaderId, matrices), raylib just forces a batch draw call if any
+// used at this moment (vaoId, shaderId, matrices), raylib forces a batch draw call if any
 // of those state-change happens (this is done in core module)
 typedef struct rlDrawCall {
     int mode;                   // Drawing mode: LINES, TRIANGLES, QUADS
@@ -478,7 +478,7 @@ typedef enum {
 // NOTE 1: Filtering considers mipmaps if available in the texture
 // NOTE 2: Filter is accordingly set for minification and magnification
 typedef enum {
-    RL_TEXTURE_FILTER_POINT = 0,        // No filter, just pixel approximation
+    RL_TEXTURE_FILTER_POINT = 0,        // No filter, pixel approximation
     RL_TEXTURE_FILTER_BILINEAR,         // Linear filtering
     RL_TEXTURE_FILTER_TRILINEAR,        // Trilinear filtering (linear with mipmaps)
     RL_TEXTURE_FILTER_ANISOTROPIC_4X,   // Anisotropic filtering 4x
@@ -3055,7 +3055,7 @@ void rlDrawRenderBatch(rlRenderBatch *batch)
     {
         // Activate elements VAO
         if (RLGL.ExtSupported.vao) glBindVertexArray(batch->vertexBuffer[batch->currentBuffer].vaoId);
-        
+
         // TODO: If no data changed on the CPU arrays there is no need to re-upload data to GPU,
         // a flag can be used to detect changes but it would imply keeping a copy buffer and memcmp() both, does it worth it?
 
@@ -3330,6 +3330,7 @@ unsigned int rlLoadTexture(const void *data, int width, int height, int format, 
 #if defined(GRAPHICS_API_OPENGL_11)
     if (format >= RL_PIXELFORMAT_COMPRESSED_DXT1_RGB)
     {
+        // TODO: Support texture data decompression
         TRACELOG(RL_LOG_WARNING, "GL: OpenGL 1.1 does not support GPU compressed texture formats");
         return id;
     }
@@ -3428,7 +3429,7 @@ unsigned int rlLoadTexture(const void *data, int width, int height, int format, 
     }
 
     // Texture parameters configuration
-    // NOTE: glTexParameteri does NOT affect texture uploading, just the way it's used
+    // NOTE: glTexParameteri does NOT affect texture uploading
 #if defined(GRAPHICS_API_OPENGL_ES2)
     // NOTE: OpenGL ES 2.0 with no GL_OES_texture_npot support (i.e. WebGL) has limited NPOT support, so CLAMP_TO_EDGE must be used
     if (RLGL.ExtSupported.texNPOT)
@@ -4115,7 +4116,7 @@ void *rlReadTexturePixels(unsigned int id, int width, int height, int format)
     // Two possible Options:
     // 1 - Bind texture to color fbo attachment and glReadPixels()
     // 2 - Create an fbo, activate it, render quad with texture, glReadPixels()
-    // Using Option 1, just need to care for texture format on retrieval
+    // Using Option 1, care for texture format on retrieval
     // NOTE: This behaviour could be conditioned by graphic driver...
     unsigned int fboId = rlLoadFramebuffer();
 
@@ -4203,8 +4204,8 @@ unsigned int rlLoadFramebuffer(void)
     if (!isGpuReady) { TRACELOG(RL_LOG_WARNING, "GL: GPU is not ready to load data, trying to load before InitWindow()?"); return fboId; }
 
 #if (defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2))
-    glGenFramebuffers(1, &fboId);       // Create the framebuffer object
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);   // Unbind any framebuffer
+    glGenFramebuffers(1, &fboId);         // Create the framebuffer object
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind any framebuffer
 #endif
 
     return fboId;
@@ -4573,7 +4574,7 @@ unsigned int rlLoadShaderCode(const char *vsCode, const char *fsCode)
     if (fsCode != NULL) fragmentShaderId = rlCompileShader(fsCode, GL_FRAGMENT_SHADER);
     else fragmentShaderId = RLGL.State.defaultFShaderId;
 
-    // In case vertex and fragment shader are the default ones, no need to recompile, just assign the default shader program id
+    // In case vertex and fragment shader are the default ones, no need to recompile, assign the default shader program id
     if ((vertexShaderId == RLGL.State.defaultVShaderId) && (fragmentShaderId == RLGL.State.defaultFShaderId)) id = RLGL.State.defaultShaderId;
     else if ((vertexShaderId > 0) && (fragmentShaderId > 0))
     {
@@ -5119,7 +5120,7 @@ Matrix rlGetMatrixTransform(void)
     // TODO: Consider possible transform matrices in the RLGL.State.stack
     //Matrix matStackTransform = rlMatrixIdentity();
     //for (int i = RLGL.State.stackCounter; i > 0; i--) matStackTransform = rlMatrixMultiply(RLGL.State.stack[i], matStackTransform);
-    
+
     mat = RLGL.State.transform;
 #endif
     return mat;

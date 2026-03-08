@@ -275,11 +275,27 @@ static int android_write(void *cookie, const char *buf, int size);
 static fpos_t android_seek(void *cookie, fpos_t offset, int whence);
 static int android_close(void *cookie);
 
-FILE *android_fopen(const char *fileName, const char *mode); // Replacement for fopen() -> Read-only!
+// WARNING: fopen() calls are intercepted via linker flag -Wl,--wrap=fopen: the linker renames
+// the original fopen -> __real_fopen and redirects all call sites to __wrap_fopen
+// The flag MUST be applied at every final link step that needs wrapping,
+// it has no effect when only building a static archive (.a)
+//
+//         CMake: no action required, raylib's CMakeLists.txt already sets 
+//                target_link_options(raylib INTERFACE -Wl,--wrap=fopen) which propagates to
+//                the final app link, wrapping app code and all static (.a) dependencies too
+// Make (SHARED): no action required for raylib itself, src/Makefile already sets 
+//                LDFLAGS += -Wl,--wrap=fopen wrapping fopen inside libraylib.so only;
+//                app code and static (.a) dependencies are NOT wrapped unless -Wl,--wrap=fopen
+//                is also added to the final app link step
+// Make (STATIC): pass -Wl,--wrap=fopen to the linker command producing the final artifact
+//     build.zig: no dedicated wrap helper; pass -Wl,--wrap=fopen to the linker command producing 
+//                the final artifact
+//        custom: pass -Wl,--wrap=fopen to the linker command producing the final artifact
+FILE *__real_fopen(const char *fileName, const char *mode); // Real fopen, provided by the linker (--wrap=fopen)
+FILE *__wrap_fopen(const char *fileName, const char *mode); // Replacement for fopen()
+
 FILE *funopen(const void *cookie, int (*readfn)(void *, char *, int), int (*writefn)(void *, const char *, int),
               fpos_t (*seekfn)(void *, fpos_t, int), int (*closefn)(void *));
-
-#define fopen(name, mode) android_fopen(name, mode)
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -715,7 +731,7 @@ void PollInputEvents(void)
 {
 #if SUPPORT_GESTURES_SYSTEM
     // NOTE: Gestures update must be called every frame to reset gestures correctly
-    // because ProcessGestureEvent() is just called on an event, not every frame
+    // because ProcessGestureEvent() is called on an event, not every frame
     UpdateGestures();
 #endif
 
@@ -1055,7 +1071,7 @@ static void AndroidCommandCallback(struct android_app *app, int32_t cmd)
                     InitGraphicsDevice();
 
                     // Initialize OpenGL context (states and resources)
-                    // NOTE: CORE.Window.currentFbo.width and CORE.Window.currentFbo.height not used, just stored as globals in rlgl
+                    // NOTE: CORE.Window.currentFbo.width and CORE.Window.currentFbo.height not used, stored as globals in rlgl
                     rlglInit(CORE.Window.currentFbo.width, CORE.Window.currentFbo.height);
 
                     // Setup default viewport
@@ -1299,7 +1315,7 @@ static int32_t AndroidInputCallback(struct android_app *app, AInputEvent *event)
         }
         else if ((keycode == AKEYCODE_BACK) || (keycode == AKEYCODE_MENU))
         {
-            // Eat BACK_BUTTON and AKEYCODE_MENU, just do nothing... and don't let to be handled by OS!
+            // Eat BACK_BUTTON and AKEYCODE_MENU, do nothing... and don't let to be handled by OS!
             return 1;
         }
         else if ((keycode == AKEYCODE_VOLUME_UP) || (keycode == AKEYCODE_VOLUME_DOWN))
@@ -1524,25 +1540,20 @@ static void SetupFramebuffer(int width, int height)
     }
 }
 
-// Replacement for fopen()
+// Replacement for fopen(), used as linker wrap entry point (-Wl,--wrap=fopen)
 // REF: https://developer.android.com/ndk/reference/group/asset
-FILE *android_fopen(const char *fileName, const char *mode)
+FILE *__wrap_fopen(const char *fileName, const char *mode)
 {
     FILE *file = NULL;
-    
+
+    // NOTE: AAsset provides access to read-only asset, write operations use regular fopen
     if (mode[0] == 'w')
     {
-        // NOTE: fopen() is mapped to android_fopen() that only grants read access to
-        // assets directory through AAssetManager but it could be required to write data
-        // using the standard stdio FILE access functions
-        // REF: https://stackoverflow.com/questions/11294487/android-writing-saving-files-from-native-code-only
-        #undef fopen
-        file = fopen(TextFormat("%s/%s", platform.app->activity->internalDataPath, fileName), mode);
-        #define fopen(name, mode) android_fopen(name, mode)
+        file = __real_fopen(TextFormat("%s/%s", platform.app->activity->internalDataPath, fileName), mode);
+        if (file == NULL) file = __real_fopen(fileName, mode);
     }
     else
     {
-        // NOTE: AAsset provides access to read-only asset
         AAsset *asset = AAssetManager_open(platform.app->activity->assetManager, fileName, AASSET_MODE_UNKNOWN);
 
         if (asset != NULL)
@@ -1552,14 +1563,12 @@ FILE *android_fopen(const char *fileName, const char *mode)
         }
         else
         {
-            #undef fopen
-            // Just do a regular open if file is not found in the assets
-            file = fopen(TextFormat("%s/%s", platform.app->activity->internalDataPath, fileName), mode);
-            if (file == NULL) file = fopen(fileName, mode);
-            #define fopen(name, mode) android_fopen(name, mode)
+            // Do a regular open if file is not found in the assets
+            file = __real_fopen(TextFormat("%s/%s", platform.app->activity->internalDataPath, fileName), mode);
+            if (file == NULL) file = __real_fopen(fileName, mode);
         }
     }
-    
+
     return file;
 }
 

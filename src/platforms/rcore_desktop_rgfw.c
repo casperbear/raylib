@@ -479,7 +479,7 @@ void ToggleFullscreen(void)
     if (!FLAG_IS_SET(CORE.Window.flags, FLAG_FULLSCREEN_MODE))
     {
         FLAG_SET(CORE.Window.flags, FLAG_FULLSCREEN_MODE);
-        // Store previous window position (in case we exit fullscreen)
+        // Store previous window position (in case of exiting fullscreen)
         Vector2 currentPosition = GetWindowPosition();
         CORE.Window.previousPosition.x = currentPosition.x;
         CORE.Window.previousPosition.y = currentPosition.y;
@@ -493,7 +493,7 @@ void ToggleFullscreen(void)
     {
         FLAG_CLEAR(CORE.Window.flags, FLAG_FULLSCREEN_MODE);
 
-        // we update the window position right away
+        // Update the window position right away
         CORE.Window.position = CORE.Window.previousPosition;
         RGFW_window_setFullscreen(platform.window, 0);
         RGFW_window_move(platform.window, CORE.Window.position.x, CORE.Window.position.y);
@@ -534,7 +534,7 @@ void ToggleBorderlessWindowed(void)
     {
         FLAG_CLEAR(CORE.Window.flags, FLAG_BORDERLESS_WINDOWED_MODE);
         RGFW_window_setBorder(platform.window, 1);
-        
+
         CORE.Window.position = CORE.Window.previousPosition;
 
         RGFW_window_resize(platform.window, CORE.Window.previousScreen.width, CORE.Window.previousScreen.height);
@@ -821,7 +821,7 @@ void SetWindowSize(int width, int height)
         CORE.Window.screen.width = width;
         CORE.Window.screen.height = height;
     }
-    
+
     RGFW_window_resize(platform.window, CORE.Window.screen.width, CORE.Window.screen.height);
 }
 
@@ -957,17 +957,17 @@ Vector2 GetWindowScaleDPI(void)
     else monitor = RGFW_getPrimaryMonitor();
 
     #if defined(__APPLE__)
-        // apple does < 1.0f scaling, example: 0.66f, 0.5f
-        // we want to convert this to be consistent
-        return (Vector2){ 1.0f / monitor->scaleX, 1.0f / monitor->scaleX };
+        // Apple does < 1.0f scaling, example: 0.66f, 0.5f
+        // it needs to be convert to be consistent
+        return (Vector2){ 1.0f/monitor->scaleX, 1.0f/monitor->scaleX };
     #else
-        // linux and windows do >= 1.0f scaling, example: 1.0f, 1.25f, 2.0f
+        // Linux and Windows do >= 1.0f scaling, example: 1.0f, 1.25f, 2.0f
         return (Vector2){ monitor->scaleX, monitor->scaleX };
     #endif
 }
 
-// Not part of raylib. Mac has a different pixel ratio for retina displays
-// and we want to be able to handle it
+// Get monitor pixel ratio
+// WARNING: Function not used, neither exposed by raylib
 float GetMonitorPixelRatio(void)
 {
     RGFW_monitor *monitor = NULL;
@@ -999,6 +999,9 @@ const char *GetClipboardText(void)
     #define WINBASE_ALREADY_INCLUDED
     #define WINGDI_ALREADY_INCLUDED
     #include "../external/win32_clipboard.h"
+#elif defined(__linux__) && defined(DRGFW_X11)
+    #include <X11/Xlib.h>
+    #include <X11/Xatom.h>
 #endif
 #endif
 
@@ -1006,6 +1009,7 @@ const char *GetClipboardText(void)
 Image GetClipboardImage(void)
 {
     Image image = { 0 };
+
 #if SUPPORT_CLIPBOARD_IMAGE && SUPPORT_MODULE_RTEXTURES
 #if defined(_WIN32)
 
@@ -1018,6 +1022,53 @@ Image GetClipboardImage(void)
 
     if (fileData == NULL) TRACELOG(LOG_WARNING, "Clipboard image: Couldn't get clipboard data");
     else image = LoadImageFromMemory(".bmp", (const unsigned char *)fileData, dataSize);
+
+#elif defined(__linux__) && defined(DRGFW_X11)
+
+    // REF: https://github.com/ColleagueRiley/Clipboard-Copy-Paste/blob/main/x11.c
+    Display *dpy = XOpenDisplay(NULL);
+    if (!dpy) return image;
+
+    Window root = DefaultRootWindow(dpy);
+    Window win = XCreateSimpleWindow(
+        dpy,      // The connection to the X Server
+        root,     // The 'Parent' window (usually the desktop/root)
+        0, 0,     // X and Y position on the screen
+        1, 1,     // Width and Height (1x1 pixel)
+        0,        // Border width
+        0,        // Border color
+        0         // Background color
+    );
+
+    Atom clipboard = XInternAtom(dpy, "CLIPBOARD", False);
+    Atom targetType = XInternAtom(dpy, "image/png", False); // Ask for PNG
+    Atom property = XInternAtom(dpy, "RAYLIB_CLIPBOARD_MANAGER", False);
+
+    // Request the data: "Convert whatever is in CLIPBOARD to image/png and put it in RAYLIB_CLIPBOARD_MANAGER"
+    XConvertSelection(dpy, clipboard, targetType, property, win, CurrentTime);
+
+    // Wait for the SelectionNotify event
+    XEvent ev = { 0 };
+    XNextEvent(dpy, &ev);
+
+    Atom actualType = { 0 };
+    int actualFormat = 0;
+    unsigned long nitems = 0;
+    unsigned long bytesAfter = 0;
+    unsigned char *data = NULL;
+
+    // Read the data from our ghost window's property
+    XGetWindowProperty(dpy, win, property, 0, ~0L, False, AnyPropertyType,
+        &actualType, &actualFormat, &nitems, &bytesAfter, &data);
+
+    if (data != NULL)
+    {
+        image = LoadImageFromMemory(".png", data, (int)nitems);
+        XFree(data);
+    }
+
+    XDestroyWindow(dpy, win);
+    XCloseDisplay(dpy);
 #else
     TRACELOG(LOG_WARNING, "Clipboard image: PLATFORM_DESKTOP_RGFW doesn't implement GetClipboardImage() for this OS");
 #endif // defined(_WIN32)
@@ -1147,7 +1198,7 @@ void PollInputEvents(void)
 {
 #if SUPPORT_GESTURES_SYSTEM
     // NOTE: Gestures update must be called every frame to reset gestures correctly
-    // because ProcessGestureEvent() is just called on an event, not every frame
+    // because ProcessGestureEvent() is called on an event, not every frame
     UpdateGestures();
 #endif
 
@@ -1232,8 +1283,8 @@ void PollInputEvents(void)
                 {
                     if (CORE.Window.dropFileCount == 0)
                     {
-                        // When a new file is dropped, we reserve a fixed number of slots for all possible dropped files
-                        // at the moment we limit the number of drops at once to 1024 files but this behaviour should probably be reviewed
+                        // When a new file is dropped, reserve a fixed number of slots for all possible dropped files
+                        // at the moment limiting the number of drops at once to 1024 files but this behaviour should probably be reviewed
                         // TODO: Pointers should probably be reallocated for any new file added...
                         CORE.Window.dropFilepaths = (char **)RL_CALLOC(1024, sizeof(char *));
 
@@ -1280,19 +1331,20 @@ void PollInputEvents(void)
                     CORE.Window.currentFbo.width = CORE.Window.render.width;
                     CORE.Window.currentFbo.height = CORE.Window.render.height;
                 #elif defined(PLATFORM_WEB_RGFW)
-                    // do nothing for web
                     return;
                 #else
                     SetupViewport(platform.window->w, platform.window->h);
-                    // if we are doing automatic DPI scaling, then the "screen" size is divided by the window scale
+
+                    // Consider content scaling if required
                     if (FLAG_IS_SET(CORE.Window.flags, FLAG_WINDOW_HIGHDPI))
                     {
                         Vector2 scaleDpi = GetWindowScaleDPI();
                         CORE.Window.screen.width = (int)(platform.window->w/scaleDpi.x);
                         CORE.Window.screen.height = (int)(platform.window->h/scaleDpi.y);
                         CORE.Window.screenScale = MatrixScale(scaleDpi.x, scaleDpi.y, 1.0f);
-                        // mouse scale doesnt seem needed
-                        // SetMouseScale(1.0f/scaleDpi.x, 1.0f/scaleDpi.y);
+
+                        // Mouse scale does not seem to be needed
+                        //SetMouseScale(1.0f/scaleDpi.x, 1.0f/scaleDpi.y);
                     }
                     else
                     {
@@ -1352,7 +1404,7 @@ void PollInputEvents(void)
 
             case RGFW_keyChar:
             {
-                // NOTE: event.text.text data comes an UTF-8 text sequence but we register codepoints (int)
+                // NOTE: event.text.text data comes an UTF-8 text sequence but registering codepoints (int)
                 // Check if there is space available in the queue
                 if (CORE.Input.Keyboard.charPressedQueueCount < MAX_CHAR_PRESSED_QUEUE)
                 {
@@ -1613,7 +1665,7 @@ int InitPlatform(void)
 
     //----------------------------------------------------------------------------
 
-    // If everything work as expected, we can continue
+    // If everything work as expected, continue
     CORE.Window.position.x = platform.window->x;
     CORE.Window.position.y = platform.window->y;
     CORE.Window.render.width = CORE.Window.screen.width;

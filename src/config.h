@@ -60,7 +60,7 @@
     #define SUPPORT_TRACELOG                1
 #endif
 #ifndef SUPPORT_CAMERA_SYSTEM
-    // Camera module is included (rcamera.h) and multiple predefined 
+    // Camera module is included (rcamera.h) and multiple predefined
     // cameras are available: free, 1st/3rd person, orbital
     #define SUPPORT_CAMERA_SYSTEM           1
 #endif
@@ -90,7 +90,7 @@
     #define SUPPORT_BUSY_WAIT_LOOP          0       // Disabled by default
 #endif
 #if !SUPPORT_PARTIALBUSY_WAIT_LOOP && !SUPPORT_BUSY_WAIT_LOOP
-    // Use a partial-busy wait loop, in this case frame sleeps for most of the time, 
+    // Use a partial-busy wait loop, in this case frame sleeps for most of the time,
     // but then runs a busy loop at the end for accuracy
     #define SUPPORT_PARTIALBUSY_WAIT_LOOP   1
 #endif
@@ -124,15 +124,9 @@
     #define SUPPORT_CLIPBOARD_IMAGE         1
 #endif
 
-#if SUPPORT_TRACELOG
-    #define TRACELOG(level, ...) TraceLog(level, __VA_ARGS__)
-#else
-    #define TRACELOG(level, ...) (void)0
-#endif
-
 // rcore: Configuration values
 // NOTE: Below values are alread defined inside [rcore.c] so there is no need to be
-// redefined here, in case it must be done, just uncomment the required line and update
+// redefined here, in case it must be done, uncomment the required line and update
 // the value; it can also be done on compilation with -DVALUE_TO_REDEFINE=128
 //------------------------------------------------------------------------------------
 //#define MAX_TRACELOG_MSG_LENGTH       256       // Max length of one trace-log message
@@ -166,7 +160,7 @@
 
 // rlgl: Configuration values
 // NOTE: Below values are alread defined inside [rlgl.h] so there is no need to be
-// redefined here, in case it must be done, just uncomment the required line and update
+// redefined here, in case it must be done, uncomment the required line and update
 // the value; it can also be done on compilation with -DVALUE_TO_REDEFINE=128
 //------------------------------------------------------------------------------------
 //#define RL_DEFAULT_BATCH_BUFFER_ELEMENTS    4096      // Default internal render batch elements limits
@@ -276,7 +270,7 @@
 
 #ifndef SUPPORT_IMAGE_EXPORT
     // Support image export functionality (.png, .bmp, .tga, .jpg, .qoi)
-    // NOTE: Image export requires stb_image_write.h library 
+    // NOTE: Image export requires stb_image_write.h library
     #define SUPPORT_IMAGE_EXPORT        1
 #endif
 #ifndef SUPPORT_IMAGE_GENERATION
@@ -328,7 +322,7 @@
 #endif
 #ifndef SUPPORT_GPU_SKINNING
     // GPU skinning disabled by default, some GPUs do not support more than 8 VBOs
-    #define SUPPORT_GPU_SKINNING        0    
+    #define SUPPORT_GPU_SKINNING        0
 #endif
 
 //------------------------------------------------------------------------------------
@@ -359,7 +353,7 @@
 
 // raudio: Configuration values
 // NOTE: Below values are alread defined inside [rlgl.h] so there is no need to be
-// redefined here, in case it must be done, just uncomment the required line and update
+// redefined here, in case it must be done, uncomment the required line and update
 // the value; it can also be done on compilation with -DVALUE_TO_REDEFINE=128
 //------------------------------------------------------------------------------------
 //#define AUDIO_DEVICE_FORMAT     ma_format_f32    // Device output format (miniaudio: float-32bit)
@@ -368,7 +362,14 @@
 //#define AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES  0    // Device period size (controls latency, 0 defaults to 10ms)
 //#define MAX_AUDIO_BUFFER_POOL_CHANNELS     16    // Maximum number of audio pool channels
 //------------------------------------------------------------------------------------
-
 #endif // !EXTERNAL_CONFIG_FLAGS
+
+// NOTE: Following macro depends on config flag that can
+// be externally defined, so, it needs to be outside EXTERNAL_CONFIG_FLAGS
+#if SUPPORT_TRACELOG
+    #define TRACELOG(level, ...) TraceLog(level, __VA_ARGS__)
+#else
+    #define TRACELOG(level, ...) (void)0
+#endif
 
 #endif // CONFIG_H

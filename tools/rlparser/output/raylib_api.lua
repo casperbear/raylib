@@ -2220,7 +2220,7 @@ return {
         {
           name = "GAMEPAD_BUTTON_UNKNOWN",
           value = 0,
-          description = "Unknown button, just for error checking"
+          description = "Unknown button, for error checking"
         },
         {
           name = "GAMEPAD_BUTTON_LEFT_FACE_UP",
@@ -2792,7 +2792,7 @@ return {
         {
           name = "TEXTURE_FILTER_POINT",
           value = 0,
-          description = "No filter, just pixel approximation"
+          description = "No filter, pixel approximation"
         },
         {
           name = "TEXTURE_FILTER_BILINEAR",
@@ -6841,6 +6841,18 @@ return {
       params = {
         {type = "Font", name = "font"},
         {type = "const char *", name = "text"},
+        {type = "float", name = "fontSize"},
+        {type = "float", name = "spacing"}
+      }
+    },
+    {
+      name = "MeasureTextCodepoints",
+      description = "Measure string size for an existing array of codepoints for Font",
+      returnType = "Vector2",
+      params = {
+        {type = "Font", name = "font"},
+        {type = "const int *", name = "codepoints"},
+        {type = "int", name = "length"},
         {type = "float", name = "fontSize"},
         {type = "float", name = "spacing"}
       }

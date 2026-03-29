@@ -174,7 +174,6 @@ extern "C" {
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 typedef struct {
-    double startTime;
     RGFW_window *window;                // Native display device (physical screen connection)
     RGFW_monitor *monitor;
     mg_gamepads minigamepad;
@@ -1096,7 +1095,7 @@ void HideCursor(void)
 // Enables cursor (unlock cursor)
 void EnableCursor(void)
 {
-    RGFW_window_captureMouse(platform.window, false);
+    RGFW_window_captureRawMouse(platform.window, false);
 
     // Set cursor position in the middle
     SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
@@ -1108,7 +1107,7 @@ void EnableCursor(void)
 // Disables cursor (lock cursor)
 void DisableCursor(void)
 {
-    RGFW_window_captureMouse(platform.window, true);
+    RGFW_window_captureRawMouse(platform.window, true);
     HideCursor();
 
     CORE.Input.Mouse.cursorLocked = true;
@@ -1127,7 +1126,9 @@ void SwapScreenBuffer(void)
 // Get elapsed time measure in seconds since InitTimer()
 double GetTime(void)
 {
-    return get_time_seconds() - platform.startTime;
+    double time = get_time_seconds() - CORE.Time.base;
+
+    return time;
 }
 
 // Open URL with default system browser (if available)
@@ -1331,7 +1332,7 @@ void PollInputEvents(void)
                     CORE.Window.currentFbo.width = CORE.Window.render.width;
                     CORE.Window.currentFbo.height = CORE.Window.render.height;
                 #elif defined(PLATFORM_WEB_RGFW)
-                    return;
+                    // do nothing but prevent other behavior
                 #else
                     SetupViewport(platform.window->w, platform.window->h);
 
@@ -1446,15 +1447,35 @@ void PollInputEvents(void)
             } break;
             case RGFW_mousePosChanged:
             {
+                float mouseX = 0.0f;
+                float mouseY = 0.0f;
                 if (RGFW_window_isCaptured(platform.window))
                 {
-                    CORE.Input.Mouse.currentPosition.x += (float)rgfw_event.mouse.vecX;
-                    CORE.Input.Mouse.currentPosition.y += (float)rgfw_event.mouse.vecY;
+                    mouseX = (float)rgfw_event.mouse.vecX;
+                    mouseY = (float)rgfw_event.mouse.vecY;
                 }
                 else
                 {
-                    CORE.Input.Mouse.currentPosition.x = (float)rgfw_event.mouse.x;
-                    CORE.Input.Mouse.currentPosition.y = (float)rgfw_event.mouse.y;
+                    mouseX = (float)rgfw_event.mouse.x;
+                    mouseY = (float)rgfw_event.mouse.y;
+                }
+
+#if defined(__EMSCRIPTEN__)
+                double canvasWidth = 0.0;
+                double canvasHeight = 0.0;
+                emscripten_get_element_css_size("#canvas", &canvasWidth, &canvasHeight);
+                mouseX *= ((float)GetScreenWidth()/(float)canvasWidth);
+                mouseY *= ((float)GetScreenHeight()/(float)canvasHeight);
+#endif
+                if (RGFW_window_isCaptured(platform.window))
+                {
+                    CORE.Input.Mouse.currentPosition.x += mouseX;
+                    CORE.Input.Mouse.currentPosition.y += mouseY;
+                }
+                else
+                {
+                    CORE.Input.Mouse.currentPosition.x = mouseX;
+                    CORE.Input.Mouse.currentPosition.y = mouseY;
                 }
 
                 CORE.Input.Touch.position[0] = CORE.Input.Mouse.currentPosition;
@@ -1628,7 +1649,7 @@ int InitPlatform(void)
 
     RGFW_setGlobalHints_OpenGL(hints);
     platform.window = RGFW_createWindow((CORE.Window.title != 0)? CORE.Window.title : " ", 0, 0, CORE.Window.screen.width, CORE.Window.screen.height, flags | RGFW_windowOpenGL);
-    platform.startTime = get_time_seconds();
+    CORE.Time.base = get_time_seconds();
 
 #ifndef PLATFORM_WEB_RGFW
     i32 screenSizeWidth;

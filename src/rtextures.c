@@ -100,19 +100,19 @@
 #endif
 
 #if SUPPORT_FILEFORMAT_DDS
-    #define RL_GPUTEX_SUPPORT_DDS
+    #define RLTEXGPU_SUPPORT_DDS
 #endif
 #if SUPPORT_FILEFORMAT_PKM
-    #define RL_GPUTEX_SUPPORT_PKM
+    #define RLTEXGPU_SUPPORT_PKM
 #endif
 #if SUPPORT_FILEFORMAT_KTX
-    #define RL_GPUTEX_SUPPORT_KTX
+    #define RLTEXGPU_SUPPORT_KTX
 #endif
 #if SUPPORT_FILEFORMAT_PVR
-    #define RL_GPUTEX_SUPPORT_PVR
+    #define RLTEXGPU_SUPPORT_PVR
 #endif
 #if SUPPORT_FILEFORMAT_ASTC
-    #define RL_GPUTEX_SUPPORT_ASTC
+    #define RLTEXGPU_SUPPORT_ASTC
 #endif
 
 // Image fileformats not supported by default
@@ -161,13 +161,13 @@
         #pragma GCC diagnostic ignored "-Wunused-function"
     #endif
 
-    #define RL_GPUTEX_MALLOC RL_MALLOC
-    #define RL_GPUTEX_FREE RL_FREE
-    #define RL_GPUTEX_LOG(...) TRACELOG(LOG_WARNING, "IMAGE: " __VA_ARGS__)
-    #define RL_GPUTEX_SHOW_LOG_INFO
-    #define RL_GPUTEX_IMPLEMENTATION
-    #include "external/rl_gputex.h"         // Required for: rl_load_xxx_from_memory()
-                                            // NOTE: Used to read compressed textures data (multiple formats support)
+    #define RLTEXGPU_MALLOC RL_MALLOC
+    #define RLTEXGPU_FREE RL_FREE
+    #define RLTEXGPU_LOG(...) TRACELOG(LOG_WARNING, "IMAGE: " __VA_ARGS__)
+    #define RLTEXGPU_SHOW_LOG_INFO
+    #define RLTEXGPU_IMPLEMENTATION
+    #include "external/rltexgpu.h"         // Required for: rl_load_xxx_from_memory()
+                                           // NOTE: Used to read compressed textures data (multiple formats support)
     #if defined(__GNUC__) // GCC and Clang
         #pragma GCC diagnostic pop
     #endif
@@ -376,8 +376,7 @@ Image LoadImageAnimFromMemory(const char *fileType, const unsigned char *fileDat
     Image image = { 0 };
     int frameCount = 0;
 
-    // Security check for input data
-    if ((fileType == NULL) || (fileData == NULL) || (dataSize == 0)) return image;
+    if ((fileType == NULL) || (fileData == NULL) || (dataSize == 0)) return image; // Security check
 
 #if SUPPORT_FILEFORMAT_GIF
     if ((strcmp(fileType, ".gif") == 0) || (strcmp(fileType, ".GIF") == 0))
@@ -621,8 +620,7 @@ bool ExportImage(Image image, const char *fileName)
 {
     int result = 0;
 
-    // Security check for input data
-    if ((image.width == 0) || (image.height == 0) || (image.data == NULL)) return result;
+    if ((image.width == 0) || (image.height == 0) || (image.data == NULL)) return result; // Security check
 
 #if SUPPORT_IMAGE_EXPORT
     int channels = 4;
@@ -709,8 +707,7 @@ unsigned char *ExportImageToMemory(Image image, const char *fileType, int *dataS
     unsigned char *fileData = NULL;
     *dataSize = 0;
 
-    // Security check for input data
-    if ((image.width == 0) || (image.height == 0) || (image.data == NULL)) return NULL;
+    if ((image.width == 0) || (image.height == 0) || (image.data == NULL)) return fileData; // Security check
 
     int channels = 4;
 
@@ -734,7 +731,7 @@ unsigned char *ExportImageToMemory(Image image, const char *fileType, int *dataS
 // Export image as code file (.h) defining an array of bytes
 bool ExportImageAsCode(Image image, const char *fileName)
 {
-    bool success = false;
+    bool result = false;
 
 #ifndef TEXT_BYTES_PER_LINE
     #define TEXT_BYTES_PER_LINE     20
@@ -774,14 +771,14 @@ bool ExportImageAsCode(Image image, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "0x%x };\n", ((unsigned char *)image.data)[dataSize - 1]);
 
     // NOTE: Text data size exported is determined by '\0' (NULL) character
-    success = SaveFileText(fileName, txtData);
+    result = SaveFileText(fileName, txtData);
 
     RL_FREE(txtData);
 
-    if (success != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image as code exported successfully", fileName);
+    if (result != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image as code exported successfully", fileName);
     else TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to export image as code", fileName);
 
-    return success;
+    return result;
 }
 
 //------------------------------------------------------------------------------------
@@ -1536,8 +1533,7 @@ Image ImageFromChannel(Image image, int selectedChannel)
 {
     Image result = { 0 };
 
-    // Security check to avoid program crash
-    if ((image.data == NULL) || (image.width == 0) || (image.height == 0)) return result;
+    if ((image.data == NULL) || (image.width == 0) || (image.height == 0)) return result; // Security check
 
     // Check selected channel is valid
     if (selectedChannel < 0)
@@ -3009,7 +3005,7 @@ void ImageColorReplace(Image *image, Color color, Color replace)
 // NOTE: Memory allocated should be freed using UnloadImageColors();
 Color *LoadImageColors(Image image)
 {
-    if ((image.width == 0) || (image.height == 0)) return NULL;
+    if ((image.width == 0) || (image.height == 0)) return NULL; // Security check
 
     Color *pixels = (Color *)RL_MALLOC(image.width*image.height*sizeof(Color));
 
@@ -5184,44 +5180,44 @@ Vector3 ColorToHSV(Color color)
     float max = 0.0f;
     float delta = 0.0f;
 
-    min = rgb.x < rgb.y? rgb.x : rgb.y;
-    min = min  < rgb.z? min  : rgb.z;
+    min = (rgb.x < rgb.y)? rgb.x : rgb.y;
+    min = (min < rgb.z)? min : rgb.z;
 
-    max = rgb.x > rgb.y? rgb.x : rgb.y;
-    max = max  > rgb.z? max  : rgb.z;
+    max = (rgb.x > rgb.y)? rgb.x : rgb.y;
+    max = (max > rgb.z)? max : rgb.z;
 
-    hsv.z = max;            // Value
+    hsv.z = max; // Value
     delta = max - min;
 
     if (delta < 0.00001f)
     {
         hsv.y = 0.0f;
-        hsv.x = 0.0f;       // Undefined, maybe NAN?
+        hsv.x = 0.0f; // Undefined, maybe NAN?
         return hsv;
     }
 
     if (max > 0.0f)
     {
         // NOTE: If max is 0, this divide would cause a crash
-        hsv.y = (delta/max);    // Saturation
+        hsv.y = (delta/max); // Saturation
     }
     else
     {
         // NOTE: If max is 0, then r = g = b = 0, s = 0, h is undefined
         hsv.y = 0.0f;
-        hsv.x = NAN;        // Undefined
+        hsv.x = NAN; // Undefined
         return hsv;
     }
 
     // NOTE: Comparing float values could not work properly
-    if (rgb.x >= max) hsv.x = (rgb.y - rgb.z)/delta;    // Between yellow & magenta
+    if (rgb.x >= max) hsv.x = (rgb.y - rgb.z)/delta; // Between yellow & magenta
     else
     {
-        if (rgb.y >= max) hsv.x = 2.0f + (rgb.z - rgb.x)/delta;  // Between cyan & yellow
-        else hsv.x = 4.0f + (rgb.x - rgb.y)/delta;      // Between magenta & cyan
+        if (rgb.y >= max) hsv.x = 2.0f + (rgb.z - rgb.x)/delta; // Between cyan & yellow
+        else hsv.x = 4.0f + (rgb.x - rgb.y)/delta; // Between magenta & cyan
     }
 
-    hsv.x *= 60.0f;     // Convert to degrees
+    hsv.x *= 60.0f; // Convert to degrees
 
     if (hsv.x < 0.0f) hsv.x += 360.0f;
 
@@ -5374,7 +5370,7 @@ Color ColorAlpha(Color color, float alpha)
 // Get src alpha-blended into dst color with tint
 Color ColorAlphaBlend(Color dst, Color src, Color tint)
 {
-    Color out = WHITE;
+    Color result = WHITE;
 
     // Apply color tint to source color
     src.r = (unsigned char)(((unsigned int)src.r*((unsigned int)tint.r+1)) >> 8);
@@ -5385,24 +5381,24 @@ Color ColorAlphaBlend(Color dst, Color src, Color tint)
 //#define COLORALPHABLEND_FLOAT
 #define COLORALPHABLEND_INTEGERS
 #if defined(COLORALPHABLEND_INTEGERS)
-    if (src.a == 0) out = dst;
-    else if (src.a == 255) out = src;
+    if (src.a == 0) result = dst;
+    else if (src.a == 255) result = src;
     else
     {
         unsigned int alpha = (unsigned int)src.a + 1; // Shifting by 8 (dividing by 256), so need to take that excess into account
-        out.a = (unsigned char)(((unsigned int)alpha*256 + (unsigned int)dst.a*(256 - alpha)) >> 8);
+        result.a = (unsigned char)(((unsigned int)alpha*256 + (unsigned int)dst.a*(256 - alpha)) >> 8);
 
-        if (out.a > 0)
+        if (result.a > 0)
         {
-            out.r = (unsigned char)((((unsigned int)src.r*alpha*256 + (unsigned int)dst.r*(unsigned int)dst.a*(256 - alpha))/out.a) >> 8);
-            out.g = (unsigned char)((((unsigned int)src.g*alpha*256 + (unsigned int)dst.g*(unsigned int)dst.a*(256 - alpha))/out.a) >> 8);
-            out.b = (unsigned char)((((unsigned int)src.b*alpha*256 + (unsigned int)dst.b*(unsigned int)dst.a*(256 - alpha))/out.a) >> 8);
+            result.r = (unsigned char)((((unsigned int)src.r*alpha*256 + (unsigned int)dst.r*(unsigned int)dst.a*(256 - alpha))/result.a) >> 8);
+            result.g = (unsigned char)((((unsigned int)src.g*alpha*256 + (unsigned int)dst.g*(unsigned int)dst.a*(256 - alpha))/result.a) >> 8);
+            result.b = (unsigned char)((((unsigned int)src.b*alpha*256 + (unsigned int)dst.b*(unsigned int)dst.a*(256 - alpha))/result.a) >> 8);
         }
     }
 #endif
 #if defined(COLORALPHABLEND_FLOAT)
-    if (src.a == 0) out = dst;
-    else if (src.a == 255) out = src;
+    if (src.a == 0) result = dst;
+    else if (src.a == 255) result = src;
     else
     {
         Vector4 fdst = ColorNormalize(dst);
@@ -5419,11 +5415,11 @@ Color ColorAlphaBlend(Color dst, Color src, Color tint)
             fout.z = (fsrc.z*fsrc.w + fdst.z*fdst.w*(1 - fsrc.w))/fout.w;
         }
 
-        out = (Color){ (unsigned char)(fout.x*255.0f), (unsigned char)(fout.y*255.0f), (unsigned char)(fout.z*255.0f), (unsigned char)(fout.w*255.0f) };
+        result = (Color){ (unsigned char)(fout.x*255.0f), (unsigned char)(fout.y*255.0f), (unsigned char)(fout.z*255.0f), (unsigned char)(fout.w*255.0f) };
     }
 #endif
 
-    return out;
+    return result;
 }
 
 // Get color lerp interpolation between two colors, factor [0.0f..1.0f]

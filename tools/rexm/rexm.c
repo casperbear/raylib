@@ -469,12 +469,12 @@ int main(int argc, char *argv[])
             int exIndex = TextFindIndex(exText, "/****************");
 
             // Update required info with some defaults
-            exTextUpdated[0] = TextReplace(exText + exIndex, "<module>", exCategory);
-            exTextUpdated[1] = TextReplace(exTextUpdated[0], "<name>", exName + strlen(exCategory) + 1);
-            //TextReplace(newExample, "<user_name>", "Ray");
-            //TextReplace(newExample, "@<user_github>", "@raysan5");
-            //TextReplace(newExample, "<year_created>", 2025);
-            //TextReplace(newExample, "<year_updated>", 2025);
+            exTextUpdated[0] = TextReplaceAlloc(exText + exIndex, "<module>", exCategory);
+            exTextUpdated[1] = TextReplaceAlloc(exTextUpdated[0], "<name>", exName + strlen(exCategory) + 1);
+            //TextReplaceAlloc(newExample, "<user_name>", "Ray");
+            //TextReplaceAlloc(newExample, "@<user_github>", "@raysan5");
+            //TextReplaceAlloc(newExample, "<year_created>", 2025);
+            //TextReplaceAlloc(newExample, "<year_updated>", 2025);
 
             SaveFileText(TextFormat("%s/%s/%s.c", exBasePath, exCategory, exName), exTextUpdated[1]);
             for (int i = 0; i < 6; i++) { MemFree(exTextUpdated[i]); exTextUpdated[i] = NULL; }
@@ -541,8 +541,6 @@ int main(int argc, char *argv[])
                                 else LOG("WARNING: Example resource must be placed in 'resources' directory next to .c file\n");
                             }
                             else LOG("WARNING: Example resource can not be found in: %s\n", TextFormat("%s/%s", GetDirectoryPath(inFileName), resPathUpdated));
-
-                            RL_FREE(resPathUpdated);
                         }
                     }
                     else
@@ -863,9 +861,7 @@ int main(int argc, char *argv[])
 
                         for (int v = 0; v < 3; v++)
                         {
-                            char *resPathUpdated = TextReplace(resPaths[r], "glsl%i", TextFormat("glsl%i", glslVer[v]));
-                            FileRemove(TextFormat("%s/%s/%s", exBasePath, exCategory, resPathUpdated));
-                            RL_FREE(resPathUpdated);
+                            FileRemove(TextFormat("%s/%s/%s", exBasePath, exCategory, TextReplace(resPaths[r], "glsl%i", TextFormat("glsl%i", glslVer[v]))));
                         }
                     }
                     else FileRemove(TextFormat("%s/%s/%s", exBasePath, exCategory, resPaths[r]));
@@ -1164,7 +1160,6 @@ int main(int argc, char *argv[])
                                     // Logging missing resources for convenience
                                     LOG("WARNING: [%s] Missing resource: %s\n", exInfo->name, resPathUpdated);
                                 }
-                                RL_FREE(resPathUpdated);
                             }
                         }
                         else
@@ -1504,11 +1499,11 @@ int main(int argc, char *argv[])
             //ChangeDirectory(exBasePath);
             //_putenv("MAKE_PATH=C:\\raylib\\w64devkit\\bin");
             //_putenv("EMSDK_PATH = C:\\raylib\\emsdk");
-            //_putenv("PYTHON_PATH=$(EMSDK_PATH)\\python\\3.9.2-nuget_64bit");
-            //_putenv("NODE_PATH=$(EMSDK_PATH)\\node\\20.18.0_64bit\\bin");
+            //_putenv("PYTHON_PATH=$(EMSDK_PATH)\\python\\3.13.3_64bit");
+            //_putenv("NODE_PATH=$(EMSDK_PATH)\\node\\22.16.0_64bit\\bin");
             //_putenv("PATH=%PATH%;$(MAKE_PATH);$(EMSDK_PATH);$(NODE_PATH);$(PYTHON_PATH)");
 
-            _putenv("PATH=%PATH%;C:\\raylib\\w64devkit\\bin;C:\\raylib\\emsdk\\python\\3.9.2-nuget_64bit;C:\\raylib\\emsdk\\node\\20.18.0_64bit\\bin");
+            _putenv("PATH=%PATH%;C:\\raylib\\w64devkit\\bin;C:\\raylib\\emsdk\\python\\3.13.3_64bit;C:\\raylib\\emsdk\\node\\22.16.0_64bit\\bin");
 #endif
 
             for (int i = 0; i < exBuildListCount; i++)
@@ -1577,13 +1572,13 @@ int main(int argc, char *argv[])
                     "    SaveFileText(\"outputLogFileName\", logText);\n"
                     "    emscripten_run_script(\"saveFileFromMEMFSToDisk('outputLogFileName','outputLogFileName')\");\n\n"
                     "    return 0";
-                char *returnReplaceTextUpdated = TextReplace(returnReplaceText, "outputLogFileName", TextFormat("%s.log", exName));
+                char *returnReplaceTextUpdated = TextReplaceAlloc(returnReplaceText, "outputLogFileName", TextFormat("%s.log", exName));
 
                 char *srcTextUpdated[4] = { 0 };
-                srcTextUpdated[0] = TextReplace(srcText, "int main(void)\n{", mainReplaceText);
-                srcTextUpdated[1] = TextReplace(srcTextUpdated[0], "WindowShouldClose()", "WindowShouldClose() && (testFramesCount < requestedTestFrames)");
-                srcTextUpdated[2] = TextReplace(srcTextUpdated[1], "EndDrawing();", "EndDrawing(); testFramesCount++;");
-                srcTextUpdated[3] = TextReplace(srcTextUpdated[2], "    return 0", returnReplaceTextUpdated);
+                srcTextUpdated[0] = TextReplaceAlloc(srcText, "int main(void)\n{", mainReplaceText);
+                srcTextUpdated[1] = TextReplaceAlloc(srcTextUpdated[0], "WindowShouldClose()", "WindowShouldClose() && (testFramesCount < requestedTestFrames)");
+                srcTextUpdated[2] = TextReplaceAlloc(srcTextUpdated[1], "EndDrawing();", "EndDrawing(); testFramesCount++;");
+                srcTextUpdated[3] = TextReplaceAlloc(srcTextUpdated[2], "    return 0", returnReplaceTextUpdated);
                 MemFree(returnReplaceTextUpdated);
                 UnloadFileText(srcText);
 
@@ -1633,9 +1628,9 @@ int main(int argc, char *argv[])
                     "    if ((argc > 1) && (argc == 3) && (strcmp(argv[1], \"--frames\") != 0)) requestedTestFrames = atoi(argv[2]);\n";
 
                 char *srcTextUpdated[3] = { 0 };
-                srcTextUpdated[0] = TextReplace(srcText, "int main(void)\n{", mainReplaceText);
-                srcTextUpdated[1] = TextReplace(srcTextUpdated[0], "WindowShouldClose()", "WindowShouldClose() && (testFramesCount < requestedTestFrames)");
-                srcTextUpdated[2] = TextReplace(srcTextUpdated[1], "EndDrawing();", "EndDrawing(); testFramesCount++;");
+                srcTextUpdated[0] = TextReplaceAlloc(srcText, "int main(void)\n{", mainReplaceText);
+                srcTextUpdated[1] = TextReplaceAlloc(srcTextUpdated[0], "WindowShouldClose()", "WindowShouldClose() && (testFramesCount < requestedTestFrames)");
+                srcTextUpdated[2] = TextReplaceAlloc(srcTextUpdated[1], "EndDrawing();", "EndDrawing(); testFramesCount++;");
                 UnloadFileText(srcText);
 
                 SaveFileText(TextFormat("%s/%s/%s.c", exBasePath, exCategory, exName), srcTextUpdated[2]);
@@ -1669,7 +1664,7 @@ int main(int argc, char *argv[])
                 FileRemove(TextFormat("%s/%s/%s.original.c", exBasePath, exCategory, exName));
 
                 // STEP 3: Run example with required arguments
-                // NOTE: Not easy to retrieve process return value from system(), it's platform dependant
+                // NOTE: Not easy to retrieve process return value from system(), it's platform dependent
                 ChangeDirectory(TextFormat("%s/%s", exBasePath, exCategory));
 
     #if defined(_WIN32)
@@ -2042,7 +2037,7 @@ static int UpdateRequiredFiles(void)
                     // In this case, we focus on web building for: glsl100
                     if (TextFindIndex(resPaths[r], "glsl%i") > -1)
                     {
-                        char *resPathUpdated = TextReplace(resPaths[r], "glsl%i", "glsl100");
+                        char *resPathUpdated = TextReplaceAlloc(resPaths[r], "glsl%i", "glsl100");
                         memset(resPaths[r], 0, 256);
                         strcpy(resPaths[r], resPathUpdated);
                         RL_FREE(resPathUpdated);
@@ -2147,7 +2142,7 @@ static int UpdateRequiredFiles(void)
         {
             mdIndex += sprintf(mdTextUpdated + mdListStartIndex + mdIndex, TextFormat("\n### category: shaders [%i]\n\n", exCollectionCount));
             mdIndex += sprintf(mdTextUpdated + mdListStartIndex + mdIndex,
-                "Examples using raylib shaders functionality, including shaders loading, parameters configuration and drawing using them (model shaders and postprocessing shaders). This functionality is directly provided by raylib [rlgl](../src/rlgl.c) module.\n\n");
+                "Examples using raylib shaders functionality, including shaders loading, parameters configuration and drawing using them (model shaders and postprocessing shaders). This functionality is directly provided by raylib [rlgl](../src/rlgl.h) module.\n\n");
         }
         else if (i == 6)    // "audio"
         {
@@ -2815,7 +2810,7 @@ static void UpdateSourceMetadata(const char *exSrcPath, const rlExampleInfo *inf
 
         // Update example header title (line #3 - ALWAYS)
         // String: "*   raylib [shaders] example - texture drawing"
-        exTextUpdated[0] = TextReplaceBetween(exTextUpdatedPtr, "*   raylib [", "\n",
+        exTextUpdated[0] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "*   raylib [", "\n",
             TextFormat("%s] example - %s", info->category, exNameFormated));
         if (exTextUpdated[0] != NULL) exTextUpdatedPtr = exTextUpdated[0];
 
@@ -2829,13 +2824,13 @@ static void UpdateSourceMetadata(const char *exSrcPath, const rlExampleInfo *inf
             if (i < info->stars) strcpy(starsText + 3*i, "★");
             else strcpy(starsText + 3*i, "☆");
         }
-        exTextUpdated[1] = TextReplaceBetween(exTextUpdatedPtr, "*   Example complexity rating: [", "/4\n",
+        exTextUpdated[1] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "*   Example complexity rating: [", "/4\n",
             TextFormat("%s] %i", starsText, info->stars));
         if (exTextUpdated[1] != NULL) exTextUpdatedPtr = exTextUpdated[1];
 
         // Update example creation/update raylib versions
         // String: "*   Example originally created with raylib 2.0, last time updated with raylib 3.7
-        exTextUpdated[2] = TextReplaceBetween(exTextUpdatedPtr, "*   Example originally created with raylib ", "\n",
+        exTextUpdated[2] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "*   Example originally created with raylib ", "\n",
             TextFormat("%s, last time updated with raylib %s", info->verCreated, info->verUpdated));
         if (exTextUpdated[2] != NULL) exTextUpdatedPtr = exTextUpdated[2];
 
@@ -2843,27 +2838,27 @@ static void UpdateSourceMetadata(const char *exSrcPath, const rlExampleInfo *inf
         // String: "*   Copyright (c) 2019-2026 Contributor Name (@github_user) and Ramon Santamaria (@raysan5)"
         if (info->yearCreated == info->yearReviewed)
         {
-            exTextUpdated[3] = TextReplaceBetween(exTextUpdatedPtr, "Copyright (c) ", ")",
+            exTextUpdated[3] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "Copyright (c) ", ")",
                 TextFormat("%i %s (@%s", info->yearCreated, info->author, info->authorGitHub));
             if (exTextUpdated[3] != NULL) exTextUpdatedPtr = exTextUpdated[3];
         }
         else
         {
-            exTextUpdated[3] = TextReplaceBetween(exTextUpdatedPtr, "Copyright (c) ", ")",
+            exTextUpdated[3] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "Copyright (c) ", ")",
                 TextFormat("%i-%i %s (@%s", info->yearCreated, info->yearReviewed, info->author, info->authorGitHub));
             if (exTextUpdated[3] != NULL) exTextUpdatedPtr = exTextUpdated[3];
         }
 
         // Update window title
         // String: "InitWindow(screenWidth, screenHeight, "raylib [shaders] example - texture drawing");"
-        exTextUpdated[4] = TextReplaceBetween(exTextUpdated[3], "InitWindow(screenWidth, screenHeight, \"", "\");",
+        exTextUpdated[4] = TextReplaceBetweenAlloc(exTextUpdated[3], "InitWindow(screenWidth, screenHeight, \"", "\");",
             TextFormat("raylib [%s] example - %s", info->category, exNameFormated));
         if (exTextUpdated[4] != NULL) exTextUpdatedPtr = exTextUpdated[4];
 
         // Update contributors names
         // String: "*   Example contributed by Contributor Name (@github_user) and reviewed by Ramon Santamaria (@raysan5)"
         // WARNING: Not all examples are contributed by someone, so the result of this replace can be NULL (string not found)
-        exTextUpdated[5] = TextReplaceBetween(exTextUpdatedPtr, "*   Example contributed by ", ")",
+        exTextUpdated[5] = TextReplaceBetweenAlloc(exTextUpdatedPtr, "*   Example contributed by ", ")",
             TextFormat("%s (@%s", info->author, info->authorGitHub));
         if (exTextUpdated[5] != NULL) exTextUpdatedPtr = exTextUpdated[5];
 
@@ -2910,14 +2905,14 @@ static void UpdateWebMetadata(const char *exHtmlPath, const char *exFilePath)
         UnloadFileText(exText);
 
         // Update example.html required text
-        exHtmlTextUpdated[0] = TextReplace(exHtmlText, "raylib web game", exTitle);
-        exHtmlTextUpdated[1] = TextReplace(exHtmlTextUpdated[0], "New raylib web videogame, developed using raylib videogames library", exDescription);
-        exHtmlTextUpdated[2] = TextReplace(exHtmlTextUpdated[1], "https://www.raylib.com/common/raylib_logo.png",
+        exHtmlTextUpdated[0] = TextReplaceAlloc(exHtmlText, "raylib web game", exTitle);
+        exHtmlTextUpdated[1] = TextReplaceAlloc(exHtmlTextUpdated[0], "New raylib web videogame, developed using raylib videogames library", exDescription);
+        exHtmlTextUpdated[2] = TextReplaceAlloc(exHtmlTextUpdated[1], "https://www.raylib.com/common/raylib_logo.png",
             TextFormat("https://raw.githubusercontent.com/raysan5/raylib/master/examples/%s/%s.png", exCategory, exName));
-        exHtmlTextUpdated[3] = TextReplace(exHtmlTextUpdated[2], "https://www.raylib.com/games.html",
+        exHtmlTextUpdated[3] = TextReplaceAlloc(exHtmlTextUpdated[2], "https://www.raylib.com/games.html",
             TextFormat("https://www.raylib.com/examples/%s/%s.html", exCategory, exName));
-        exHtmlTextUpdated[4] = TextReplace(exHtmlTextUpdated[3], "raylib - example", TextFormat("raylib - %s", exName)); // og:site_name
-        exHtmlTextUpdated[5] = TextReplace(exHtmlTextUpdated[4], "https://github.com/raysan5/raylib",
+        exHtmlTextUpdated[4] = TextReplaceAlloc(exHtmlTextUpdated[3], "raylib - example", TextFormat("raylib - %s", exName)); // og:site_name
+        exHtmlTextUpdated[5] = TextReplaceAlloc(exHtmlTextUpdated[4], "https://github.com/raysan5/raylib",
             TextFormat("https://github.com/raysan5/raylib/blob/master/examples/%s/%s.c", exCategory, exName));
 
         SaveFileText(exHtmlPathCopy, exHtmlTextUpdated[5]);

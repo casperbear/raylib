@@ -1281,7 +1281,6 @@ void UploadMesh(Mesh *mesh, bool dynamic)
 
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
     mesh->vaoId = rlLoadVertexArray();
-    if (mesh->vaoId == 0) return;
 
     rlEnableVertexArray(mesh->vaoId);
 
@@ -1430,7 +1429,7 @@ void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int 
 // Draw a 3d mesh with material and transform
 void DrawMesh(Mesh mesh, Material material, Matrix transform)
 {
-#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_11_SOFTWARE)
+#if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_SOFTWARE)
     #define GL_VERTEX_ARRAY         0x8074
     #define GL_NORMAL_ARRAY         0x8075
     #define GL_COLOR_ARRAY          0x8076
@@ -1954,7 +1953,7 @@ void UnloadMesh(Mesh mesh)
 // Export mesh data to file
 bool ExportMesh(Mesh mesh, const char *fileName)
 {
-    bool success = false;
+    bool result = false;
 
     if (IsFileExtension(fileName, ".obj"))
     {
@@ -2018,7 +2017,7 @@ bool ExportMesh(Mesh mesh, const char *fileName)
         }
 
         // NOTE: Text data length exported is determined by '\0' (NULL) character
-        success = SaveFileText(fileName, txtData);
+        result = SaveFileText(fileName, txtData);
 
         RL_FREE(txtData);
     }
@@ -2027,13 +2026,13 @@ bool ExportMesh(Mesh mesh, const char *fileName)
         // TODO: Support additional file formats to export mesh vertex data
     }
 
-    return success;
+    return result;
 }
 
 // Export mesh as code file (.h) defining multiple arrays of vertex attributes
 bool ExportMeshAsCode(Mesh mesh, const char *fileName)
 {
-    bool success = false;
+    bool result = false;
 
 #ifndef TEXT_BYTES_PER_LINE
     #define TEXT_BYTES_PER_LINE     20
@@ -2117,14 +2116,14 @@ bool ExportMeshAsCode(Mesh mesh, const char *fileName)
     //-----------------------------------------------------------------------------------------
 
     // NOTE: Text data size exported is determined by '\0' (NULL) character
-    success = SaveFileText(fileName, txtData);
+    result = SaveFileText(fileName, txtData);
 
     RL_FREE(txtData);
 
-    //if (success != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image as code exported successfully", fileName);
+    //if (result != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image as code exported successfully", fileName);
     //else TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to export image as code", fileName);
 
-    return success;
+    return result;
 }
 
 #if SUPPORT_FILEFORMAT_OBJ || SUPPORT_FILEFORMAT_MTL
@@ -3965,32 +3964,6 @@ void DrawModelWiresEx(Model model, Vector3 position, Vector3 rotationAxis, float
     rlDisableWireMode();
 }
 
-// Draw a model points
-// WARNING: OpenGL ES 2.0 does not support point mode drawing
-void DrawModelPoints(Model model, Vector3 position, float scale, Color tint)
-{
-    rlEnablePointMode();
-    rlDisableBackfaceCulling();
-
-    DrawModel(model, position, scale, tint);
-
-    rlEnableBackfaceCulling();
-    rlDisablePointMode();
-}
-
-// Draw a model points
-// WARNING: OpenGL ES 2.0 does not support point mode drawing
-void DrawModelPointsEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint)
-{
-    rlEnablePointMode();
-    rlDisableBackfaceCulling();
-
-    DrawModelEx(model, position, rotationAxis, rotationAngle, scale, tint);
-
-    rlEnableBackfaceCulling();
-    rlDisablePointMode();
-}
-
 // Draw a billboard
 void DrawBillboard(Camera camera, Texture2D texture, Vector3 position, float scale, Color tint)
 {
@@ -4116,7 +4089,8 @@ bool CheckCollisionSpheres(Vector3 center1, float radius1, Vector3 center2, floa
     */
 
     // Check for distances squared to avoid sqrtf()
-    if (Vector3DotProduct(Vector3Subtract(center2, center1), Vector3Subtract(center2, center1)) <= (radius1 + radius2)*(radius1 + radius2)) collision = true;
+    float radSum = radius1 + radius2;
+    if (Vector3DistanceSqr(center1, center2) <= radSum*radSum) collision = true;
 
     return collision;
 }

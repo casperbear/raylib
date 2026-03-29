@@ -7,6 +7,7 @@
 *       - Multiplatform: Windows, Linux, macOS, FreeBSD, Web, Android, Raspberry Pi, DRM native...
 *       - Written in plain C code (C99) in PascalCase/camelCase notation
 *       - Hardware accelerated with OpenGL (1.1, 2.1, 3.3, 4.3, ES2, ES3 - choose at compile)
+*       - Software renderer optional, for systems with no GPU: [rlsw]
 *       - Custom OpenGL abstraction layer (usable as standalone module): [rlgl]
 *       - Multiple Fonts formats supported (TTF, OTF, FNT, BDF, Sprite fonts)
 *       - Many texture formats supportted, including compressed formats (DXT, ETC, ASTC)
@@ -39,7 +40,7 @@
 *       [rtextures] stb_image_write (Sean Barret) for image writing (BMP, TGA, PNG, JPG)
 *       [rtextures] stb_image_resize2 (Sean Barret) for image resizing algorithms
 *       [rtextures] stb_perlin (Sean Barret) for Perlin Noise image generation
-*       [rtextures] rl_gputex (Ramon Santamaria) for GPU-compressed texture formats
+*       [rtextures] rltexgpu (Ramon Santamaria) for GPU-compressed texture formats
 *       [rtext] stb_truetype (Sean Barret) for ttf fonts loading
 *       [rtext] stb_rect_pack (Sean Barret) for rectangles packing
 *       [rmodels] par_shapes (Philip Rideout) for parametric 3d shapes generation
@@ -1359,7 +1360,7 @@ RLAPI Image LoadImageFromScreen(void);                                          
 RLAPI bool IsImageValid(Image image);                                                                    // Check if an image is valid (data and parameters)
 RLAPI void UnloadImage(Image image);                                                                     // Unload image from CPU memory (RAM)
 RLAPI bool ExportImage(Image image, const char *fileName);                                               // Export image data to file, returns true on success
-RLAPI unsigned char *ExportImageToMemory(Image image, const char *fileType, int *fileSize);              // Export image to memory buffer
+RLAPI unsigned char *ExportImageToMemory(Image image, const char *fileType, int *fileSize);              // Export image to memory buffer, memory must be MemFree()
 RLAPI bool ExportImageAsCode(Image image, const char *fileName);                                         // Export image as code file defining an array of bytes, returns true on success
 
 // Image generation functions
@@ -1536,7 +1537,7 @@ RLAPI const char *CodepointToUTF8(int codepoint, int *utf8Size);                
 
 // Text strings management functions (no UTF-8 strings, only byte chars)
 // WARNING 1: Most of these functions use internal static buffers[], it's recommended to store returned data on user-side for re-use
-// WARNING 2: Some strings allocate memory internally for the returned strings, those strings must be free by user using MemFree()
+// WARNING 2: Some functions allocate memory internally for the returned strings, those strings must be freed by user using MemFree()
 RLAPI char **LoadTextLines(const char *text, int *count);                                   // Load text as separate lines ('\n')
 RLAPI void UnloadTextLines(char **text, int lineCount);                                     // Unload text lines
 RLAPI int TextCopy(char *dst, const char *src);                                             // Copy one string to another, returns bytes copied
@@ -1546,9 +1547,12 @@ RLAPI const char *TextFormat(const char *text, ...);                            
 RLAPI const char *TextSubtext(const char *text, int position, int length);                  // Get a piece of a text string
 RLAPI const char *TextRemoveSpaces(const char *text);                                       // Remove text spaces, concat words
 RLAPI char *GetTextBetween(const char *text, const char *begin, const char *end);           // Get text between two strings
-RLAPI char *TextReplace(const char *text, const char *search, const char *replacement);     // Replace text string (WARNING: memory must be freed!)
-RLAPI char *TextReplaceBetween(const char *text, const char *begin, const char *end, const char *replacement); // Replace text between two specific strings (WARNING: memory must be freed!)
-RLAPI char *TextInsert(const char *text, const char *insert, int position);                 // Insert text in a position (WARNING: memory must be freed!)
+RLAPI char *TextReplace(const char *text, const char *search, const char *replacement);     // Replace text string with new string
+RLAPI char *TextReplaceAlloc(const char *text, const char *search, const char *replacement);   // Replace text string with new string, memory must be MemFree()
+RLAPI char *TextReplaceBetween(const char *text, const char *begin, const char *end, const char *replacement); // Replace text between two specific strings
+RLAPI char *TextReplaceBetweenAlloc(const char *text, const char *begin, const char *end, const char *replacement); // Replace text between two specific strings, memory must be MemFree()
+RLAPI char *TextInsert(const char *text, const char *insert, int position);                 // Insert text in a defined byte position
+RLAPI char *TextInsertAlloc(const char *text, const char *insert, int position);               // Insert text in a defined byte position, memory must be MemFree()
 RLAPI char *TextJoin(char **textList, int count, const char *delimiter);                    // Join text strings with delimiter
 RLAPI char **TextSplit(const char *text, char delimiter, int *count);                       // Split text into multiple strings, using MAX_TEXTSPLIT_COUNT static strings
 RLAPI void TextAppend(char *text, const char *append, int *position);                       // Append text at specific position and move cursor
@@ -1604,8 +1608,6 @@ RLAPI void DrawModel(Model model, Vector3 position, float scale, Color tint);   
 RLAPI void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model with extended parameters
 RLAPI void DrawModelWires(Model model, Vector3 position, float scale, Color tint);          // Draw a model wires (with texture if set)
 RLAPI void DrawModelWiresEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model wires (with texture if set) with extended parameters
-RLAPI void DrawModelPoints(Model model, Vector3 position, float scale, Color tint); // Draw a model as points
-RLAPI void DrawModelPointsEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model as points with extended parameters
 RLAPI void DrawBoundingBox(BoundingBox box, Color color);                                   // Draw bounding box (wires)
 RLAPI void DrawBillboard(Camera camera, Texture2D texture, Vector3 position, float scale, Color tint);   // Draw a billboard texture
 RLAPI void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector2 size, Color tint); // Draw a billboard texture defined by source

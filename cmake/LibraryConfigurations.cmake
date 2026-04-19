@@ -96,21 +96,30 @@ elseif (${PLATFORM} STREQUAL "Android")
 
 elseif ("${PLATFORM}" STREQUAL "DRM")
     set(PLATFORM_CPP "PLATFORM_DRM")
-    set(GRAPHICS "GRAPHICS_API_OPENGL_ES2")
 
     add_definitions(-D_DEFAULT_SOURCE)
-    add_definitions(-DEGL_NO_X11)
     add_definitions(-DPLATFORM_DRM)
 
-    find_library(GLESV2 GLESv2)
-    find_library(EGL EGL)
     find_library(DRM drm)
-    find_library(GBM gbm)
 
     if (NOT CMAKE_CROSSCOMPILING OR NOT CMAKE_SYSROOT)
         include_directories(/usr/include/libdrm)
     endif ()
-    set(LIBS_PRIVATE ${GLESV2} ${EGL} ${DRM} ${GBM} atomic pthread dl)
+
+    if ("${OPENGL_VERSION}" STREQUAL "Software")
+        # software rendering does not require EGL/GBM.
+        set(GRAPHICS "GRAPHICS_API_OPENGL_SOFTWARE")
+        set(LIBS_PRIVATE ${DRM} atomic pthread dl)
+    else ()
+        set(GRAPHICS "GRAPHICS_API_OPENGL_ES2")
+        add_definitions(-DEGL_NO_X11)
+
+        find_library(GLESV2 GLESv2)
+        find_library(EGL EGL)
+        find_library(GBM gbm)
+
+        set(LIBS_PRIVATE ${GLESV2} ${EGL} ${DRM} ${GBM} atomic pthread dl)
+    endif ()
     set(LIBS_PUBLIC m)
 
 elseif ("${PLATFORM}" STREQUAL "SDL")
@@ -147,6 +156,7 @@ elseif ("${PLATFORM}" STREQUAL "SDL")
 			add_compile_definitions(USING_SDL2_PACKAGE)
 		endif()
 	endif()	
+
 elseif ("${PLATFORM}" STREQUAL "RGFW")
     set(PLATFORM_CPP "PLATFORM_DESKTOP_RGFW")
 
@@ -172,6 +182,15 @@ elseif ("${PLATFORM}" STREQUAL "WebRGFW")
     set(PLATFORM_CPP "PLATFORM_WEB_RGFW")
     set(GRAPHICS "GRAPHICS_API_OPENGL_ES2")
     set(CMAKE_STATIC_LIBRARY_SUFFIX ".a")
+
+elseif ("${PLATFORM}" STREQUAL "Memory")
+    set(PLATFORM_CPP "PLATFORM_MEMORY")
+    set(GRAPHICS "GRAPHICS_API_OPENGL_SOFTWARE")
+    set(OPENGL_VERSION "Software")
+
+    if(WIN32 OR CMAKE_C_COMPILER MATCHES "mingw|mingw32|mingw64")
+        set(LIBS_PRIVATE winmm)
+    endif()
 endif ()
 
 if (NOT ${OPENGL_VERSION} MATCHES "OFF")

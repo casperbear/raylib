@@ -11,22 +11,22 @@
 *       - Play/Stop/Pause/Resume loaded audio
 *
 *   CONFIGURATION:
-*       #define SUPPORT_MODULE_RAUDIO
+*       #define SUPPORT_MODULE_RAUDIO       1
 *           raudio module is included in the build
 *
 *       #define RAUDIO_STANDALONE
 *           Define to use the module as standalone library (independently of raylib)
 *           Required types and functions are defined in the same module
 *
-*       #define SUPPORT_FILEFORMAT_WAV
-*       #define SUPPORT_FILEFORMAT_OGG
-*       #define SUPPORT_FILEFORMAT_MP3
-*       #define SUPPORT_FILEFORMAT_QOA
-*       #define SUPPORT_FILEFORMAT_FLAC
-*       #define SUPPORT_FILEFORMAT_XM
-*       #define SUPPORT_FILEFORMAT_MOD
+*       #define SUPPORT_FILEFORMAT_WAV      1
+*       #define SUPPORT_FILEFORMAT_OGG      1
+*       #define SUPPORT_FILEFORMAT_MP3      1
+*       #define SUPPORT_FILEFORMAT_QOA      1
+*       #define SUPPORT_FILEFORMAT_FLAC     0
+*       #define SUPPORT_FILEFORMAT_XM       1
+*       #define SUPPORT_FILEFORMAT_MOD      1
 *           Selected desired fileformats to be supported for loading. Some of those formats are
-*           supported by default, to remove support, comment unrequired #define in this module
+*           supported by default, to remove support, #define as 0 in this module or your build system
 *
 *   DEPENDENCIES:
 *       miniaudio.h  - Audio device management lib (https://github.com/mackron/miniaudio)
@@ -1702,8 +1702,7 @@ Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data,
 
         // Copy data to allocated memory for default UnloadMusicStream
         unsigned char *newData = (unsigned char *)RL_MALLOC(dataSize);
-        int it = dataSize/sizeof(unsigned char);
-        for (int i = 0; i < it; i++) newData[i] = data[i];
+        for (int i = 0; i < dataSize; i++) newData[i] = data[i];
 
         // Memory loaded version for jar_mod_load_file()
         if (dataSize && (dataSize < 32*1024*1024))
@@ -1763,6 +1762,8 @@ bool IsMusicValid(Music music)
 // Unload music stream
 void UnloadMusicStream(Music music)
 {
+    if (IsMusicStreamPlaying(music)) StopMusicStream(music);
+
     UnloadAudioStream(music.stream);
 
     if (music.ctxData != NULL)

@@ -1,10 +1,10 @@
 changelog
 ---------
 
-Current Release:    raylib 5.5 (18 November 2024)
+Current Release:    raylib 6.0 (23 April 2026)
 
 -------------------------------------------------------------------------
-Release:     raylib 6.0 (?? March 2026)
+Release:     raylib 6.0 (23 April 2026)
 -------------------------------------------------------------------------
 KEY CHANGES:
  - New Software Renderer backend [rlsw]
@@ -221,6 +221,7 @@ Detailed changes:
 [rlsw] REVIEWED: C++ support (#5291) by @alexgb0
 [rshapes] ADDED: `DrawLineDashed()` (#5222) by @luis605
 [rshapes] ADDED: `DrawEllipseV()` and `DrawEllipseLinesV()` (#4963) by @meowstr
+[rshapes] REDESIGNED: `DrawCircleGradient()` to use Vector2 as center parameter by @raysan5 -WARNING-
 [rshapes] REVIEWED: `DrawLine()`, fix pixel offset issue on drawing (#4666) by @Bigfoot71
 [rshapes] REVIEWED: `DrawRectangleGradientEx()`, incorrect parameter names (#4980) by @vincent
 [rshapes] REVIEWED: `DrawRectangleLines`, fix pixel offset issue (#4669) by @Bigfoot71
@@ -285,6 +286,7 @@ Detailed changes:
 [rtext] REVIEWED: `TextToFloat()`, remove removed inaccurate comment (#4596) by @hexmaster111
 [rtext] REDESIGNED: `LoadFontData()`, added input parameter by @raysan5 -WARNING-
 [rmodels] ADDED: Support CPU animation in OpenGL 1.1 (#4925) by @JeffM2501
+[rmodels] REMOVED: `DrawModelPoints()` and `DrawModelPointsEx()`, moved to an example (#5697) by @maiconpintoabreu -WARNING-
 [rmodels] RENAMED: Skinning shader variables (new default naming) by @raysan5
 [rmodels] REVIEWED: glTF animation framerate calculation (#4472, #5445) by @TheLazyIndianTechie
 [rmodels] REVIEWED: Assign meshes without bone weights to the bone they are attached to so they animate by @Jeffm2501
@@ -311,6 +313,7 @@ Detailed changes:
 [rmodels] REVIEWED: `LoadModelAnimationsGLTF()`, properly load 1 frame animations (#5561) by @arlez80
 [rmodels] REVIEWED: `LoadModelAnimationsGLTF()`, anim correctly inherits world transform (#5206) by @ArmanOmmid
 [rmodels] REVIEWED: `UploadMesh()`, improve default normal and tangent values (#4763) by @Bigfoot71
+[rmodels] REVIEWED: `UplaodMesh()`, fix for devices without VAO support (#5692) by @psxdev
 [rmodels] REVIEWED: `GenMeshTangents()`, improvements (#4937) by @Bigfoot71
 [rmodels] REVIEWED: `UpdateModelAnimation()` optimization (#5244) by @Arrangemonk
 [rmodels] REVIEWED: `UpdateModelAnimationBones()`, break on first mesh found and formating by @raysan5
@@ -322,6 +325,7 @@ Detailed changes:
 [rmodels] REVIEWED: `DrawMeshInstanced()`, breaking if instanceTransform was unused (#5469) by @al13n321
 [rmodels] REVIEWED: `DrawSphereEx()`, normals support (#4926) by @karl-zylinski
 [rmodels] REVIEWED: `ExportMesh()`, improve OBJ vertex data precision and lower memory usage (#4496) by @mikeemm
+[rmodels] REVIEWED: `CheckCollisionSpheres()`, simplified using `Vector3DistanceSqr()` (#5695) by @Bigfoot71
 [raudio] REVIEWED: Fix a glitch at the end of a sound (#5578) by @mackron
 [raudio] REVIEWED: Improvements to device configuration (#5577) by @mackron
 [raudio] REVIEWED: Initialize sound alias properties as if it was a new sound (#5123) by @JeffM2501
@@ -759,6 +763,7 @@ Detailed changes:
 [rexm] REVIEWED: `Makefile.Web` before trying to rebuild new example for web by @raysan5
 [rexm] REVIEWED: Using `Makefile.Web` for specific web versions generation by @raysan5
 
+[external] ADDED: `cgltf_write` 1.15, to support glTF models export in the future, by @raysan5
 [external] RENAMED: `rl_gputex.h` to `rltexgpu.h`, compressed textures loading
 [external] REVIEWED: `rltexgpu.h`, make it usable standalone by @raysan5
 [external] REVIEWED: `rltexgpu.h, fix the swizzling in `rl_load_dds_from_memory()` (#5422) by @msmith-codes
@@ -767,16 +772,23 @@ Detailed changes:
 [external] REVIEWED: `sdefl` and `sinfl` issues (#5367) by @raysan5
 [external] REVIEWED: `sinfl_bsr()`, improvements by @RicoP
 [external] REVIEWED: `stb_truetype`, fix composite glyph scaling logic (#4811) by @ashishbhattarai
+[external] UPDATED: `raygui` to 5.0-dev for examples by @raysan5
 [external] UPDATED: dr_libs (#5020) by @Emil2010
-[external] UPDATED: miniaudio to v0.11.22 (#4983) by @M374LX
-[external] UPDATED: miniaudio to v0.11.23 (#5234) by @pyrokn8
-[external] UPDATED: miniaudio to v0.11.24 (#5506) by @vdemcak
-[external] UPDATED: raygui to 5.0-dev for examples by @raysan5
-[external] UPDATED: RGFW to 1.5 (#4688) by @ColleagueRiley
-[external] UPDATED: RGFW to 1.6 (#4795) by @colleagueRiley
-[external] UPDATED: RGFW to 1.7 (#4965) by @M374LX
-[external] UPDATED: RGFW to 1.7.5-dev (#4976) by @M374LX
-[external] UPDATED: RGFW to 2.0.0 (#5582) by @CrackedPixel
+[external] UPDATED: `miniaudio` to v0.11.22 (#4983) by @M374LX
+[external] UPDATED: `miniaudio` to v0.11.23 (#5234) by @pyrokn8
+[external] UPDATED: `miniaudio` to v0.11.24 (#5506) by @vdemcak
+[external] UPDATED: `RGFW` to 1.5 (#4688) by @ColleagueRiley
+[external] UPDATED: `RGFW` to 1.6 (#4795) by @colleagueRiley
+[external] UPDATED: `RGFW` to 1.7 (#4965) by @M374LX
+[external] UPDATED: `RGFW` to 1.7.5-dev (#4976) by @M374LX
+[external] UPDATED: `RGFW` to 2.0.0 (#5582) by @CrackedPixel
+[external] UPDATED: `cgltf` 1.14 to 1.15 by @raysan5
+[external] UPDATED: `dr_flac` v0.13.0 to v0.13.3 by @raysan5
+[external] UPDATED: `dr_mp3` v0.7.0 to v0.7.4 by @raysan5
+[external] UPDATED: `m3d` to latest master by @raysan5
+[external] UPDATED: `qoi` to latest master by @raysan5
+[external] UPDATED: `qoa` to latest master by @raysan5
+[external] UPDATED: `stb_image_resize2` v2.12 to v2.18 by @raysan5
 
 [misc] ADDED: SECURITY.md for security reporting policies by @raysan5
 [misc] ADDED: `examples/examples_list`, to be used by `rexm` or other tools by @raysan5

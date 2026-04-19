@@ -4199,7 +4199,7 @@ return {
     },
     {
       name = "LoadDirectoryFiles",
-      description = "Load directory filepaths",
+      description = "Load directory filepaths, files and directories, no subdirs scan",
       returnType = "FilePathList",
       params = {
         {type = "const char *", name = "dirPath"}
@@ -4207,7 +4207,7 @@ return {
     },
     {
       name = "LoadDirectoryFilesEx",
-      description = "Load directory filepaths with extension filtering and recursive directory scan. Use 'DIR' in the filter string to include directories in the result",
+      description = "Load directory filepaths with extension filtering and subdir scan; some filters available: "*.*", "FILES*", "DIRS*"",
       returnType = "FilePathList",
       params = {
         {type = "const char *", name = "basePath"},
@@ -4862,6 +4862,27 @@ return {
       }
     },
     {
+      name = "DrawCircleV",
+      description = "Draw a color-filled circle (Vector version)",
+      returnType = "void",
+      params = {
+        {type = "Vector2", name = "center"},
+        {type = "float", name = "radius"},
+        {type = "Color", name = "color"}
+      }
+    },
+    {
+      name = "DrawCircleGradient",
+      description = "Draw a gradient-filled circle",
+      returnType = "void",
+      params = {
+        {type = "Vector2", name = "center"},
+        {type = "float", name = "radius"},
+        {type = "Color", name = "inner"},
+        {type = "Color", name = "outer"}
+      }
+    },
+    {
       name = "DrawCircleSector",
       description = "Draw a piece of a circle",
       returnType = "void",
@@ -4884,28 +4905,6 @@ return {
         {type = "float", name = "startAngle"},
         {type = "float", name = "endAngle"},
         {type = "int", name = "segments"},
-        {type = "Color", name = "color"}
-      }
-    },
-    {
-      name = "DrawCircleGradient",
-      description = "Draw a gradient-filled circle",
-      returnType = "void",
-      params = {
-        {type = "int", name = "centerX"},
-        {type = "int", name = "centerY"},
-        {type = "float", name = "radius"},
-        {type = "Color", name = "inner"},
-        {type = "Color", name = "outer"}
-      }
-    },
-    {
-      name = "DrawCircleV",
-      description = "Draw a color-filled circle (Vector version)",
-      returnType = "void",
-      params = {
-        {type = "Vector2", name = "center"},
-        {type = "float", name = "radius"},
         {type = "Color", name = "color"}
       }
     },

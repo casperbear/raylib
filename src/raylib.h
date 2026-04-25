@@ -984,7 +984,7 @@ extern "C" {            // Prevents name mangling of functions
 #endif
 
 // Window-related functions
-RLAPI void InitWindow(int width, int height, const char *title);  // Initialize window and OpenGL context
+RLAPI void InitWindow(int width, int height, const char *title);  // Initialize window and OpenGL context. Passing 0 to width/height opens in fullscreen (provided the flags are appropriately set)
 RLAPI void CloseWindow(void);                                     // Close window and unload OpenGL context
 RLAPI bool WindowShouldClose(void);                               // Check if application should close (KEY_ESCAPE pressed or windows close icon clicked)
 RLAPI bool IsWindowReady(void);                                   // Check if window has been initialized successfully

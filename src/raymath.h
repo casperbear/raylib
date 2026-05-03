@@ -1,6 +1,6 @@
 /**********************************************************************************************
 *
-*   raymath v2.0 - Math functions to work with Vector2, Vector3, Matrix and Quaternions
+*   raymath v2.0 - Math functions to work with Vector2, Vector3, Vector4, Matrix and Quaternions
 *
 *   CONVENTIONS:
 *     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
@@ -2806,6 +2806,11 @@ inline const Vector2& operator -= (Vector2& lhs, const Vector2& rhs)
     return lhs;
 }
 
+inline Vector2 operator * (const float& lhs, const Vector2& rhs)
+{
+    return Vector2Scale(rhs, lhs);
+}
+
 inline Vector2 operator * (const Vector2& lhs, const float& rhs)
 {
     return Vector2Scale(lhs, rhs);
@@ -2898,6 +2903,11 @@ inline const Vector3& operator -= (Vector3& lhs, const Vector3& rhs)
 {
     lhs = Vector3Subtract(lhs, rhs);
     return lhs;
+}
+
+inline Vector3 operator * (const float& lhs, const Vector3& rhs)
+{
+    return Vector3Scale(rhs, lhs);
 }
 
 inline Vector3 operator * (const Vector3& lhs, const float& rhs)
@@ -2993,6 +3003,11 @@ inline const Vector4& operator -= (Vector4& lhs, const Vector4& rhs)
 {
     lhs = Vector4Subtract(lhs, rhs);
     return lhs;
+}
+
+inline Vector4 operator * (const float& lhs, const Vector4& rhs)
+{
+    return Vector4Scale(rhs, lhs);
 }
 
 inline Vector4 operator * (const Vector4& lhs, const float& rhs)

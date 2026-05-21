@@ -756,7 +756,7 @@ RLAPI void rlDrawVertexArrayElementsInstanced(int offset, int count, const void 
 // Textures management
 RLAPI unsigned int rlLoadTexture(const void *data, int width, int height, int format, int mipmapCount); // Load texture data
 RLAPI unsigned int rlLoadTextureArray(const void** data, int width, int height, int format, int slices);
-RLAPI unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int rows, int columns);
+RLAPI unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int columns, int rows);
 RLAPI unsigned int rlLoadTextureDepth(int width, int height, bool useRenderBuffer); // Load depth texture/renderbuffer (to be attached to fbo)
 RLAPI unsigned int rlLoadTextureCubemap(const void *data, int size, int format, int mipmapCount); // Load texture cubemap data
 RLAPI void rlUpdateTexture(unsigned int id, int offsetX, int offsetY, int width, int height, int format, const void *data); // Update texture with new data on GPU
@@ -3593,7 +3593,7 @@ unsigned int rlLoadTextureArray(const void** data, int width, int height, int fo
 #endif
 }
 
-unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int rows, int columns)
+unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int columns, int rows)
 {
     unsigned int id = 0;
 
@@ -3619,7 +3619,7 @@ unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height
     // Calculate dimensions of a single slice (tile)
     int sliceWidth = width / columns;
     int sliceHeight = height / rows;
-    int sliceCount = rows * columns;
+    int sliceCount = columns * rows;
 
     // Warning if atlas size doesn't divide evenly
     if ((width % columns != 0) || (height % rows != 0))

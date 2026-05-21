@@ -4279,7 +4279,7 @@ Texture LoadTextureArrayFromImages(const Image* images, int count)
     return texture;
 }
 
-Texture LoadTextureArrayFromAtlasImage(Image atlas, int rows, int columns)
+Texture LoadTextureArrayFromAtlasImage(Image atlas, int columns, int rows)
 {
     Texture texture = { 0 };
 
@@ -4289,14 +4289,14 @@ Texture LoadTextureArrayFromAtlasImage(Image atlas, int rows, int columns)
         return texture;
     }
 
-    if (rows * columns <= 0)
+    if (columns * rows <= 0)
     {
         TRACELOG(LOG_WARNING, "TEXTURE: Invalid rows/columns for Texture Array Atlas");
         return texture;
     }
 
     // Call the RLGL backend
-    texture.id = rlLoadTextureArrayFromAtlas(atlas.data, atlas.width, atlas.height, atlas.format, rows, columns);
+    texture.id = rlLoadTextureArrayFromAtlas(atlas.data, atlas.width, atlas.height, atlas.format, columns, rows);
 
     if (texture.id > 0)
     {

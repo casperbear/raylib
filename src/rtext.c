@@ -417,9 +417,6 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
     int charSpacing = 0;
     int lineSpacing = 0;
 
-    int x = 0;
-    int y = 0;
-
     // Allocate a temporal arrays for glyphs data measures,
     // once the actual number of glyphs is obtained, copy data to a sized array
     int tempCharValues[MAX_GLYPHS_FROM_IMAGE] = { 0 };
@@ -428,6 +425,8 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
     Color *pixels = LoadImageColors(image);
 
     // Parse image data to get charSpacing and lineSpacing
+    int x = 0;
+    int y = 0;
     for (y = 0; y < image.height; y++)
     {
         for (x = 0; x < image.width; x++)
@@ -438,7 +437,12 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
         if (!COLOR_EQUAL(pixels[y*image.width + x], key)) break;
     }
 
-    if ((x == 0) || (y == 0)) return font; // Security check
+    // Security check
+    if ((x == 0) || (y == 0))
+    {
+        UnloadImageColors(pixels);
+        return font;
+    }
 
     charSpacing = x;
     lineSpacing = y;
@@ -634,7 +638,6 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
     {
         bool genFontChars = false;
         stbtt_fontinfo fontInfo = { 0 };
-        // TODO: Should a shallow copy be created to avoid "dealing" with a const user array?
         int *requiredCodepoints = (int *)codepoints;
 
         if (stbtt_InitFont(&fontInfo, (unsigned char *)fileData, 0)) // Initialize font for data reading
@@ -1238,7 +1241,7 @@ void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, f
                 DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, tint);
             }
 
-            if (font.glyphs[index].advanceX == 0) textOffsetX += ((float)font.recs[index].width*scaleFactor + spacing);
+            if (font.glyphs[index].advanceX == 0) textOffsetX += (font.recs[index].width*scaleFactor + spacing);
             else textOffsetX += ((float)font.glyphs[index].advanceX*scaleFactor + spacing);
         }
 
@@ -1309,7 +1312,7 @@ void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Ve
                 DrawTextCodepoint(font, codepoints[i], (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, tint);
             }
 
-            if (font.glyphs[index].advanceX == 0) textOffsetX += ((float)font.recs[index].width*scaleFactor + spacing);
+            if (font.glyphs[index].advanceX == 0) textOffsetX += (font.recs[index].width*scaleFactor + spacing);
             else textOffsetX += ((float)font.glyphs[index].advanceX*scaleFactor + spacing);
         }
     }
@@ -1793,8 +1796,6 @@ char *TextReplace(const char *text, const char *search, const char *replacement)
 
         if ((textLen + count*(replaceLen - searchLen)) < (MAX_TEXT_BUFFER_LENGTH - 1))
         {
-            // TODO: Allow copying data replaced up to maximum buffer size and stop
-
             tempPtr = buffer; // Point to result start
 
             // First time through the loop, all the variable are set correctly from here on,
@@ -1803,7 +1804,7 @@ char *TextReplace(const char *text, const char *search, const char *replacement)
             //  - 'text' points to the remainder of text after "end of replace"
             while (count > 0)
             {
-                insertPoint = (char *)strstr(text, search);
+                insertPoint = strstr(text, search);
                 lastReplacePos = (int)(insertPoint - text);
 
                 memcpy(tempPtr, text, lastReplacePos);
@@ -1868,7 +1869,7 @@ char *TextReplaceAlloc(const char *text, const char *search, const char *replace
             //  - 'text' points to the remainder of text after "end of replace"
             while (count > 0)
             {
-                insertPoint = (char *)strstr(text, search);
+                insertPoint = strstr(text, search);
                 lastReplacePos = (int)(insertPoint - text);
 
                 memcpy(temp, text, lastReplacePos);
@@ -1984,8 +1985,6 @@ char *TextInsert(const char *text, const char *insert, int position)
 
         if ((textLen + insertLen) < (MAX_TEXT_BUFFER_LENGTH - 1))
         {
-            // TODO: Allow copying data inserted up to maximum buffer size and stop
-
             for (int i = 0; i < position; i++) buffer[i] = text[i];
             for (int i = 0; i < insertLen; i++) buffer[i+position] = insert[i];
             for (int i = position; i < textLen; i++) buffer[i+insertLen] = text[i];
@@ -2078,7 +2077,8 @@ char **TextSplit(const char *text, char delimiter, int *count)
         counter = 1;
 
         // Count how many substrings ar found on text and set pointers to every one
-        for (int i = 0; i < MAX_TEXT_BUFFER_LENGTH; i++)
+        // NOTE: Last buffer byte is reserved to terminate the last substring
+        for (int i = 0; i < MAX_TEXT_BUFFER_LENGTH - 1; i++)
         {
             buffer[i] = text[i];
             if (buffer[i] == '\0') break;
@@ -2116,7 +2116,7 @@ int TextFindIndex(const char *text, const char *search)
 
     if (text != NULL)
     {
-        char *ptr = (char *)strstr(text, search);
+        char *ptr = strstr(text, search);
 
         if (ptr != NULL) position = (int)(ptr - text);
     }
@@ -2126,7 +2126,7 @@ int TextFindIndex(const char *text, const char *search)
 
 // Get upper case version of provided string
 // WARNING: Limited functionality, only basic characters set
-// TODO: Support UTF-8 diacritics to upper-case, check codepoints
+// TODO: Support UTF-8 diacritics (á, ñ, ü...) to upper-case, check codepoints
 char *TextToUpper(const char *text)
 {
     static char buffer[MAX_TEXT_BUFFER_LENGTH] = { 0 };
@@ -2182,9 +2182,11 @@ char *TextToPascal(const char *text)
             if (text[j] != '_') buffer[i] = text[j];
             else
             {
-                j++;
+                while (text[j] == '_') j++;     // Skip one or more separators
+                if (text[j] == '\0') break;     // Text ends on a separator, nothing left to copy
+
                 if ((text[j] >= 'a') && (text[j] <= 'z')) buffer[i] = text[j] - 32;
-                else if ((text[j] >= '0') && (text[j] <= '9')) buffer[i] = text[j];
+                else buffer[i] = text[j];       // Character can not be upper-cased, copy it as is
             }
         }
     }
@@ -2264,8 +2266,11 @@ char *TextToCamel(const char *text)
             if (text[j] != '_') buffer[i] = text[j];
             else
             {
-                j++;
+                while (text[j] == '_') j++;     // Skip one or more separators
+                if (text[j] == '\0') break;     // Text ends on a separator, nothing left to copy
+
                 if ((text[j] >= 'a') && (text[j] <= 'z')) buffer[i] = text[j] - 32;
+                else buffer[i] = text[j];       // Character can not be upper-cased, copy it as is
             }
         }
     }

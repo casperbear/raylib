@@ -623,8 +623,8 @@ Image LoadImageFromScreen(void)
 {
     Image image = { 0 };
 
-    image.width = (int)(GetRenderWidth());
-    image.height = (int)(GetRenderHeight());
+    image.width = GetRenderWidth();
+    image.height = GetRenderHeight();
     image.mipmaps = 1;
     image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     image.data = rlReadScreenPixels(image.width, image.height);
@@ -1348,7 +1348,7 @@ void ImageFormat(Image *image, int newFormat)
 
                     for (int i = 0, k = 0; i < image->width*image->height*2; i += 2, k++)
                     {
-                        ((unsigned char *)image->data)[i] = (unsigned char)((pixels[k].x*0.299f + (float)pixels[k].y*0.587f + (float)pixels[k].z*0.114f)*255.0f);
+                        ((unsigned char *)image->data)[i] = (unsigned char)((pixels[k].x*0.299f + pixels[k].y*0.587f + pixels[k].z*0.114f)*255.0f);
                         ((unsigned char *)image->data)[i + 1] = (unsigned char)(pixels[k].w*255.0f);
                     }
 
@@ -1442,7 +1442,7 @@ void ImageFormat(Image *image, int newFormat)
 
                     for (int i = 0; i < image->width*image->height; i++)
                     {
-                        ((float *)image->data)[i] = (float)(pixels[i].x*0.299f + pixels[i].y*0.587f + pixels[i].z*0.114f);
+                        ((float *)image->data)[i] = (pixels[i].x*0.299f + pixels[i].y*0.587f + pixels[i].z*0.114f);
                     }
                 } break;
                 case PIXELFORMAT_UNCOMPRESSED_R32G32B32:
@@ -1476,7 +1476,7 @@ void ImageFormat(Image *image, int newFormat)
 
                     for (int i = 0; i < image->width*image->height; i++)
                     {
-                        ((unsigned short *)image->data)[i] = FloatToHalf((float)(pixels[i].x*0.299f + pixels[i].y*0.587f + pixels[i].z*0.114f));
+                        ((unsigned short *)image->data)[i] = FloatToHalf((pixels[i].x*0.299f + pixels[i].y*0.587f + pixels[i].z*0.114f));
                     }
                 } break;
                 case PIXELFORMAT_UNCOMPRESSED_R16G16B16:
@@ -1573,7 +1573,7 @@ Image ImageTextEx(Font font, const char *text, float fontSize, float spacing, Co
         {
             if ((codepoint != ' ') && (codepoint != '\t'))
             {
-                Rectangle rec = { (float)(textOffsetX + font.glyphs[index].offsetX), (float)(textOffsetY + font.glyphs[index].offsetY), (float)font.recs[index].width, (float)font.recs[index].height };
+                Rectangle rec = { (float)(textOffsetX + font.glyphs[index].offsetX), (float)(textOffsetY + font.glyphs[index].offsetY), font.recs[index].width, font.recs[index].height };
                 ImageDrawImagePro(&imText, font.glyphs[index].image, (Rectangle){ 0, 0, (float)font.glyphs[index].image.width, (float)font.glyphs[index].image.height },
                     rec, (Vector2){ 0 }, 0.0f, tint);
             }
@@ -1592,7 +1592,7 @@ Image ImageTextEx(Font font, const char *text, float fontSize, float spacing, Co
         TRACELOG(LOG_INFO, "IMAGE: Text scaled by factor: %f", scaleFactor);
 
         // Using nearest-neighbor scaling algorithm for default font
-        // TODO: Allow defining the preferred scaling mechanism externally
+        // TODO: Support selection of preferred scaling mechanism, use flag?
         if (font.texture.id == GetFontDefault().texture.id) ImageResizeNN(&imText, (int)(imSize.x*scaleFactor), (int)(imSize.y*scaleFactor));
         else ImageResize(&imText, (int)(imSize.x*scaleFactor), (int)(imSize.y*scaleFactor));
     }
@@ -1654,7 +1654,7 @@ Image ImageFromChannel(Image image, int selectedChannel)
         selectedChannel = 3;
     }
 
-    // TODO: Consider other one-channel formats: R16, R32
+    // TODO: Support R16 and R32 channel sizes, not only 8-bit
     result.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
     result.height = image.height;
     result.width = image.width;
@@ -1780,8 +1780,8 @@ void ImageResizeNN(Image *image, int newWidth, int newHeight)
     Color *output = (Color *)RL_MALLOC(newWidth*newHeight*sizeof(Color));
 
     // EDIT: added +1 to account for an early rounding problem
-    int xRatio = (int)((image->width << 16)/newWidth) + 1;
-    int yRatio = (int)((image->height << 16)/newHeight) + 1;
+    int xRatio = ((image->width << 16)/newWidth) + 1;
+    int yRatio = ((image->height << 16)/newHeight) + 1;
 
     int x2 = 0;
     int y2 = 0;
@@ -2277,10 +2277,10 @@ void ImageBlurGaussian(Image *image, int blurSize)
         }
         else if (pixelsCopy1[i].w <= 255.0f)
         {
-            float alpha = (float)pixelsCopy1[i].w/255.0f;
-            pixels[i].r = (unsigned char)fminf((float)pixelsCopy1[i].x/alpha, 255.0);
-            pixels[i].g = (unsigned char)fminf((float)pixelsCopy1[i].y/alpha, 255.0);
-            pixels[i].b = (unsigned char)fminf((float)pixelsCopy1[i].z/alpha, 255.0);
+            float alpha = pixelsCopy1[i].w/255.0f;
+            pixels[i].r = (unsigned char)fminf(pixelsCopy1[i].x/alpha, 255.0);
+            pixels[i].g = (unsigned char)fminf(pixelsCopy1[i].y/alpha, 255.0);
+            pixels[i].b = (unsigned char)fminf(pixelsCopy1[i].z/alpha, 255.0);
             pixels[i].a = (unsigned char) pixelsCopy1[i].w;
         }
     }
@@ -2408,7 +2408,7 @@ void ImageKernelConvolution(Image *image, const float *kernel, int kernelSize)
 
     for (int i = 0; i < (image->width*image->height); i++)
     {
-        float alpha = (float)imageCopy2[i].w;
+        float alpha = imageCopy2[i].w;
 
         pixels[i].r = (unsigned char)((imageCopy2[i].x)*255.0f);
         pixels[i].g = (unsigned char)((imageCopy2[i].y)*255.0f);
@@ -3161,9 +3161,9 @@ Color *LoadImageColors(Image image)
                 } break;
                 case PIXELFORMAT_UNCOMPRESSED_R8G8B8:
                 {
-                    pixels[i].r = (unsigned char)((unsigned char *)image.data)[k];
-                    pixels[i].g = (unsigned char)((unsigned char *)image.data)[k + 1];
-                    pixels[i].b = (unsigned char)((unsigned char *)image.data)[k + 2];
+                    pixels[i].r = ((unsigned char *)image.data)[k];
+                    pixels[i].g = ((unsigned char *)image.data)[k + 1];
+                    pixels[i].b = ((unsigned char *)image.data)[k + 2];
                     pixels[i].a = 255;
 
                     k += 3;
@@ -3404,9 +3404,9 @@ Color GetImageColor(Image image, int x, int y)
             } break;
             case PIXELFORMAT_UNCOMPRESSED_R8G8B8:
             {
-                color.r = (unsigned char)((unsigned char *)image.data)[(y*image.width + x)*3];
-                color.g = (unsigned char)((unsigned char *)image.data)[(y*image.width + x)*3 + 1];
-                color.b = (unsigned char)((unsigned char *)image.data)[(y*image.width + x)*3 + 2];
+                color.r = ((unsigned char *)image.data)[(y*image.width + x)*3];
+                color.g = ((unsigned char *)image.data)[(y*image.width + x)*3 + 1];
+                color.b = ((unsigned char *)image.data)[(y*image.width + x)*3 + 2];
                 color.a = 255;
 
             } break;
@@ -4037,7 +4037,52 @@ void ImageDrawRectangleLinesEx(Image *dst, Rectangle rec, int thick, Color color
 // Draw rectangle with gradient colors within an image, counter-clockwise color order
 void ImageDrawRectangleGradientEx(Image *dst, Rectangle rec, Color col1, Color col2, Color col3, Color col4)
 {
-    // TODO: NEW: Implement ImageDrawRectangleGradientEx()
+    // Security checks to avoid program crash
+    if ((dst == NULL) || (dst->data == NULL) || (rec.width <= 0) || (rec.height <= 0)) return;
+
+    int x0 = (int)floorf(rec.x);
+    int y0 = (int)floorf(rec.y);
+    int x1 = (int)ceilf(rec.x + rec.width);
+    int y1 = (int)ceilf(rec.y + rec.height);
+
+    // Limit draw to image bounds
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > dst->width) x1 = dst->width;
+    if (y1 > dst->height) y1 = dst->height;
+
+    // Safety check
+    if ((x0 >= x1) || (y0 >= y1)) return;
+
+    for (int y = y0; y < y1; y++)
+    {
+        float ty = (y - rec.y)/rec.height;
+        if (ty < 0.0f) ty = 0.0f;
+        if (ty > 1.0f) ty = 1.0f;
+
+        for (int x = x0; x < x1; x++)
+        {
+            float tx = (x - rec.x)/rec.width;
+            if (tx < 0.0f) tx = 0.0f;
+            if (tx > 1.0f) tx = 1.0f;
+
+            // Bilinear interpolation weights
+            float w1 = (1.0f - tx)*(1.0f - ty);
+            float w2 = (1.0f - tx)*ty;
+            float w3 = tx*ty;
+            float w4 = tx*(1.0f - ty);
+
+            Color color = {
+                (unsigned char)(col1.r*w1 + col2.r*w2 + col3.r*w3 + col4.r*w4),
+                (unsigned char)(col1.g*w1 + col2.g*w2 + col3.g*w3 + col4.g*w4),
+                (unsigned char)(col1.b*w1 + col2.b*w2 + col3.b*w3 + col4.b*w4),
+                (unsigned char)(col1.a*w1 + col2.a*w2 + col3.a*w3 + col4.a*w4)
+            };
+
+            // Using ImageDrawPixel() to let it manage color format conversion
+            ImageDrawPixel(dst, x, y, color);
+        }
+    }
 }
 
 // Draw circle within an image
@@ -4049,10 +4094,10 @@ void ImageDrawCircle(Image *dst, int centerX, int centerY, int radius, Color col
 
     while (y >= x)
     {
-        ImageDrawRectangle(dst, centerX - x, centerY + y, x*2, 1, color);
-        ImageDrawRectangle(dst, centerX - x, centerY - y, x*2, 1, color);
-        ImageDrawRectangle(dst, centerX - y, centerY + x, y*2, 1, color);
-        ImageDrawRectangle(dst, centerX - y, centerY - x, y*2, 1, color);
+        ImageDrawRectangle(dst, centerX - x, centerY + y, x*2 + 1, 1, color);
+        ImageDrawRectangle(dst, centerX - x, centerY - y, x*2 + 1, 1, color);
+        ImageDrawRectangle(dst, centerX - y, centerY + x, y*2 + 1, 1, color);
+        ImageDrawRectangle(dst, centerX - y, centerY - x, y*2 + 1, 1, color);
         x++;
 
         if (decesionParameter > 0)
@@ -4107,7 +4152,51 @@ void ImageDrawCircleLinesV(Image *dst, Vector2 center, int radius, Color color)
 // Draw a gradient-filled circle within an image
 void ImageDrawCircleGradient(Image *dst, Vector2 center, float radius, Color inner, Color outer)
 {
-    // TODO: NEW: Implement ImageDrawCircleGradient()
+    // Security checks to avoid program crash
+    if ((dst == NULL) || (dst->data == NULL) || (radius <= 0.0f)) return;
+
+    int x0 = (int)floorf(center.x - radius);
+    int y0 = (int)floorf(center.y - radius);
+    int x1 = (int)ceilf(center.x + radius);
+    int y1 = (int)ceilf(center.y + radius);
+
+    // Limit drawing to image bounds
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > dst->width)  x1 = dst->width;
+    if (y1 > dst->height) y1 = dst->height;
+
+    if ((x0 >= x1) || (y0 >= y1)) return;
+
+    float radiusSq = radius*radius;
+
+    for (int y = y0; y < y1; y++)
+    {
+        for (int x = x0; x < x1; x++)
+        {
+            // Center relative to circle center
+            float dx = (x + 0.5f) - center.x;
+            float dy = (y + 0.5f) - center.y;
+
+            float distSq = dx*dx + dy*dy;
+
+            // Skip pixels outside the circle
+            if (distSq > radiusSq) continue;
+
+            // Linear interpolation from inner to outer color
+            // TODO: Consider other types of interpolation for better results?
+            float t = sqrtf(distSq)/radius;
+            Color color = {
+                (unsigned char)(inner.r + (outer.r - inner.r)*t),
+                (unsigned char)(inner.g + (outer.g - inner.g)*t),
+                (unsigned char)(inner.b + (outer.b - inner.b)*t),
+                (unsigned char)(inner.a + (outer.a - inner.a)*t)
+            };
+
+            // NOTE: Pixel format conversion managed by ImageDrawPixel()
+            ImageDrawPixel(dst, x, y, color);
+        }
+    }
 }
 
 // Draw an image within an image
@@ -4135,8 +4224,8 @@ void ImageDrawImageRec(Image *dst, Image src, Rectangle srcRec, Vector2 position
 // TODO: REVIEW: ImageDrawImagePro(), implement origin and rotation for image drawing
 void ImageDrawImagePro(Image *dst, Image src, Rectangle srcRec, Rectangle dstRec, Vector2 origin, float rotation, Color tint)
 {
-    // Security check to avoid program crash
-    if ((dst->data == NULL) || (dst->width == 0) || (dst->height == 0) ||
+    // Security checks to avoid program crash
+    if ((dst == NULL) || (dst->data == NULL) || (dst->width == 0) || (dst->height == 0) ||
         (src.data == NULL) || (src.width == 0) || (src.height == 0)) return;
 
     if (dst->format >= PIXELFORMAT_COMPRESSED_DXT1_RGB) TRACELOG(LOG_WARNING, "Image drawing not supported for compressed formats");
@@ -4198,7 +4287,7 @@ void ImageDrawImagePro(Image *dst, Image src, Rectangle srcRec, Rectangle dstRec
 
         Color colSrc = { 0 };
         Color colDst = { 0 };
-        Color blend = { 0 };
+        Color colBlend = { 0 };
         bool blendRequired = true;
 
         // Fast path: Avoid blend if source has no alpha to blend
@@ -4236,10 +4325,10 @@ void ImageDrawImagePro(Image *dst, Image src, Rectangle srcRec, Rectangle dstRec
                     colDst = GetPixelColor(pDst, dst->format);
 
                     // Fast path: Avoid blend if source has no alpha to blend
-                    if (blendRequired) blend = ColorAlphaBlend(colDst, colSrc, tint);
-                    else blend = colSrc;
+                    if (blendRequired) colBlend = ColorAlphaBlend(colDst, colSrc, tint);
+                    else colBlend = colSrc;
 
-                    SetPixelColor(pDst, blend, dst->format);
+                    SetPixelColor(pDst, colBlend, dst->format);
 
                     pDst += bytesPerPixelDst;
                     pSrc += bytesPerPixelSrc;
@@ -4554,11 +4643,23 @@ TextureCubemap LoadTextureCubemap(Image image, int layout)
     return cubemap;
 }
 
-// Load texture for rendering (framebuffer)
-// NOTE: Render texture is loaded by default with RGBA color attachment and depth RenderBuffer
+// Load RGBA texture for rendering (framebuffer)
 RenderTexture2D LoadRenderTexture(int width, int height)
 {
+    return LoadRenderTextureEx(width, height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+}
+
+// Load texture for rendering (framebuffer), with specific format
+// NOTE: Render texture is loaded by default with RGBA color attachment and depth RenderBuffer
+RLAPI RenderTexture2D LoadRenderTextureEx(int width, int height, int format)
+{
     RenderTexture2D target = { 0 };
+
+    if (format >= PIXELFORMAT_COMPRESSED_DXT1_RGB)
+    {
+        TRACELOG(LOG_WARNING, "FBO: Render texture format not supported");
+        return target;
+    }
 
     target.id = rlLoadFramebuffer(); // Load an empty framebuffer
 
@@ -4567,10 +4668,10 @@ RenderTexture2D LoadRenderTexture(int width, int height)
         rlEnableFramebuffer(target.id);
 
         // Create color texture (default to RGBA)
-        target.texture.id = rlLoadTexture(NULL, width, height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8, 1);
+        target.texture.id = rlLoadTexture(NULL, width, height, format, 1);
         target.texture.width = width;
         target.texture.height = height;
-        target.texture.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        target.texture.format = format;
         target.texture.mipmaps = 1;
 
         // Create depth renderbuffer/texture
@@ -4599,7 +4700,7 @@ bool IsTextureValid(Texture2D texture)
 {
     bool result = false;
 
-    if ((texture.id > 0) &&         // Validate OpenGL id (texture uplaoded to GPU)
+    if ((texture.id > 0) &&         // Validate OpenGL id (texture uploaded to GPU)
         (texture.width > 0) &&      // Validate texture width
         (texture.height > 0) &&     // Validate texture height
         (texture.format > 0) &&     // Validate texture pixel format
@@ -4899,7 +5000,7 @@ void DrawTexture(Texture2D texture, int posX, int posY, Color tint)
 // Draw a texture with position defined as Vector2
 void DrawTextureV(Texture2D texture, Vector2 position, Color tint)
 {
-    DrawTextureEx(texture, position, 0, 1.0f, tint);
+    DrawTextureEx(texture, position, 0.0f, 1.0f, tint);
 }
 
 // Draw a texture with rotation and scale
@@ -5528,7 +5629,7 @@ Color ColorAlphaBlend(Color dst, Color src, Color tint)
     else
     {
         unsigned int alpha = (unsigned int)src.a + 1; // Shifting by 8 (dividing by 256), so need to take that excess into account
-        result.a = (unsigned char)(((unsigned int)alpha*256 + (unsigned int)dst.a*(256 - alpha)) >> 8);
+        result.a = (unsigned char)((alpha*256 + (unsigned int)dst.a*(256 - alpha)) >> 8);
 
         if (result.a > 0)
         {
@@ -5614,7 +5715,7 @@ Color GetPixelColor(const void *srcPtr, int format)
         {
             color.r = (unsigned char)((((unsigned short *)srcPtr)[0] >> 11)*255/31);
             color.g = (unsigned char)(((((unsigned short *)srcPtr)[0] >> 6) & 0b0000000000011111)*255/31);
-            color.b = (unsigned char)((((unsigned short *)srcPtr)[0] & 0b0000000000011111)*255/31);
+            color.b = (unsigned char)(((((unsigned short *)srcPtr)[0] >> 1) & 0b0000000000011111)*255/31);
             color.a = (((unsigned short *)srcPtr)[0] & 0b0000000000000001)? 255 : 0;
 
         } break;

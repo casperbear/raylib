@@ -1129,12 +1129,37 @@ const char *GetClipboardText(void)
     return NULL;
 }
 
+#if SUPPORT_CLIPBOARD_IMAGE && SUPPORT_MODULE_RTEXTURES
+    #define WIN32_CLIPBOARD_IMPLEMENTATION
+    #define WINUSER_ALREADY_INCLUDED
+    #define WINBASE_ALREADY_INCLUDED
+    #define WINGDI_ALREADY_INCLUDED
+    #include "../external/win32_clipboard.h"
+#endif
+
 // Get clipboard image
 Image GetClipboardImage(void)
 {
     Image image = { 0 };
 
-    TRACELOG(LOG_WARNING, "GetClipboardText not implemented");
+#if SUPPORT_CLIPBOARD_IMAGE && SUPPORT_MODULE_RTEXTURES
+    unsigned int dataSize = 0;
+    void *fileData = NULL;
+    int width = 0;
+    int height = 0;
+
+    fileData = (void *)Win32GetClipboardImageData(&width, &height, &dataSize);
+
+    if (fileData == NULL) TRACELOG(LOG_WARNING, "Clipboard image: Couldn't get clipboard data.");
+    else
+    {
+        image = LoadImageFromMemory(".bmp", (const unsigned char*)fileData, (int)dataSize);
+
+        RL_FREE(fileData);
+    }
+#else
+    TRACELOG(LOG_WARNING, "Clipboard image: SUPPORT_CLIPBOARD_IMAGE requires SUPPORT_MODULE_RTEXTURES to work properly");
+#endif // SUPPORT_CLIPBOARD_IMAGE
 
     return image;
 }
@@ -1333,6 +1358,9 @@ void PollInputEvents(void)
     // Reset key repeats
     for (int i = 0; i < MAX_KEYBOARD_KEYS; i++) CORE.Input.Keyboard.keyRepeatInFrame[i] = 0;
 
+    // Register previous mouse states
+    for (int i = 0; i < MAX_MOUSE_BUTTONS; i++) CORE.Input.Mouse.previousButtonState[i] = CORE.Input.Mouse.currentButtonState[i];
+
     // Reset last gamepad button/axis registered state
     CORE.Input.Gamepad.lastButtonPressed = 0; // GAMEPAD_BUTTON_UNKNOWN
     //CORE.Input.Gamepad.axisCount = 0;
@@ -1354,6 +1382,8 @@ void PollInputEvents(void)
 
     // Register previous mouse position
     CORE.Input.Mouse.previousPosition = CORE.Input.Mouse.currentPosition;
+
+    CORE.Window.resizedLastFrame = false;
 
     // Process windows messages
     MSG msg = { 0 };
@@ -1648,6 +1678,7 @@ int InitPlatform(void)
     // Update flags (in case of deferred state change required)
     UpdateFlags(platform.hwnd, platform.desiredFlags, platform.appScreenWidth, platform.appScreenHeight);
 
+    CORE.Window.resizedLastFrame = false;
     CORE.Window.render.width = CORE.Window.screen.width;
     CORE.Window.render.height = CORE.Window.screen.height;
     CORE.Window.currentFbo.width = CORE.Window.render.width;

@@ -43,9 +43,11 @@
 #define DrawTextExA DrawTextExAWin32
 #define DrawTextExW DrawTextExWin32
 #define PlaySoundA PlaySoundAWin32
+#define PlaySoundW PlaySoundWWin32
 // include windows
 #define WIN32_LEAN_AND_MEAN 
 #include <windows.h>
+#include <playsoundapi.h>
 
 // remove all our redefinitions so that raylib can define them properly
 #undef CloseWindow
@@ -61,3 +63,4 @@
 #undef DrawTextExA
 #undef DrawTextExW
 #undef PlaySoundA
+#undef PlaySoundW

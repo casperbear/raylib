@@ -274,9 +274,9 @@ typedef struct Texture {
     unsigned int id;        // OpenGL texture id
     int width;              // Texture base width
     int height;             // Texture base height
-    int slices;             // 0 means usual texture, > 0 indicates number of slices in array texture
     int mipmaps;            // Mipmap levels, 1 by default
     int format;             // Data format (PixelFormat type)
+    int slices;             // 0 means usual texture, > 0 indicates number of slices in array texture (fork: kept last so upstream positional initializers stay valid)
 } Texture;
 
 // Texture2D, same as Texture

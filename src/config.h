@@ -97,7 +97,7 @@
 #ifndef SUPPORT_SCREEN_CAPTURE
     // Allow automatic screen capture of current screen pressing F12, defined in KeyCallback()
     // WARNING: It requires SUPPORT_FILEFORMAT_PNG flag
-    #define SUPPORT_SCREEN_CAPTURE          1
+    #define SUPPORT_SCREEN_CAPTURE          0 // fork: disabled (F12 wrote screenshots to disk in end-user builds)
 #endif
 #ifndef SUPPORT_COMPRESSION_API
     // Support CompressData() and DecompressData() functions

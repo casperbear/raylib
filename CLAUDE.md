@@ -44,7 +44,7 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 - `CameraMoveToTarget` (rcamera.h): early return when `delta == 0`.
 - `rlEnd` (rlgl.h): depth increment `1/10000` instead of `1/20000`.
 - raymath.h: `RAYMATH_USE_SIMD_INTRINSICS` defaults to 1.
-- config.h: `RL_CULL_DISTANCE_NEAR 0.125`, `RL_CULL_DISTANCE_FAR 2000.0`.
+- config.h: `RL_CULL_DISTANCE_NEAR 0.125`, `RL_CULL_DISTANCE_FAR 2000.0`, `SUPPORT_SCREEN_CAPTURE 0` (no F12 screenshots).
 - rlgl.h: commented-out `// #define RLGL_IMPLEMENTATION` for IntelliSense; must stay commented when building.
 - external/stb_image.h: commented-out "dirty alpha" cleanup experiments in the PNG parser (inactive).
 - raylib.h: `InitWindow` comment notes that 0 width/height opens fullscreen.

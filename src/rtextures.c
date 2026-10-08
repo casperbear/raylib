@@ -1555,6 +1555,8 @@ Image ImageTextEx(Font font, const char *text, float fontSize, float spacing, Co
     // Create image to store text
     imText = GenImageColor((int)imSize.x, (int)imSize.y, BLANK);
 
+    int previousCodepoint = -1;     // Previous character in the line, for kerning (fork, matches MeasureTextEx)
+
     for (int i = 0; i < textLength;)
     {
         // Get next codepoint from byte string and glyph index in font
@@ -1568,9 +1570,13 @@ Image ImageTextEx(Font font, const char *text, float fontSize, float spacing, Co
             // TODO: Support custom line spacing defined by user
             textOffsetY += (font.baseSize + font.baseSize/2);
             textOffsetX = 0;
+            previousCodepoint = -1;
         }
         else
         {
+            if (previousCodepoint != -1) textOffsetX += GetGlyphKerning(font, previousCodepoint, codepoint);   // WARNING: Module required: rtext
+            previousCodepoint = codepoint;
+
             if ((codepoint != ' ') && (codepoint != '\t'))
             {
                 Rectangle rec = { (float)(textOffsetX + font.glyphs[index].offsetX), (float)(textOffsetY + font.glyphs[index].offsetY), font.recs[index].width, font.recs[index].height };

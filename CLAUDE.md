@@ -15,6 +15,9 @@ To see everything the fork changes: `git diff upstream/master master -- src`.
    `slices` is deliberately the LAST field of `Texture` so such initializers keep working (slices = 0).
    Never move it before `format`.
 3. Rebuild `raylib.lib`, copy the three headers and the lib into MixMage.
+   Claude's build (2026-10-08): `MSBuild.exe projects\VS2022\raylib\raylib.vcxproj /p:Configuration=Release
+   /p:Platform=x64` (VS2019 MSBuild); built alone, the project writes to `projects\VS2022\raylib\build\raylib\bin\x64\Release`
+   (gitignored; the human's .sln build uses `projects\VS2022\build`). Runtime: /MT (LIBCMT), as before.
 
 ## Fork-only API (texture arrays and mipmap control)
 
@@ -37,7 +40,25 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 | `SetTextureArrayFilter(texture, filter)` | rtextures.c | `SetTextureFilter` |
 | `SetTextureArrayWrap(texture, wrap)` | rtextures.c | `SetTextureWrap` |
 
+## Fork-only API (kerning, 2026-10-08)
+
+`Font.kerningCount` / `Font.kernings` (`KerningPair { first, second, amount }`: glyph indices into `Font.glyphs`, whole
+pixels at `baseSize`, sorted by first then second): the LAST fields of `Font`, so positional initializers keep working.
+Filled in `LoadFontFromMemory` (TTF/OTF only) by static `LoadFontKerningData` (rtext.c): glyphCount^2 lookups through
+`stbtt_GetGlyphKernAdvance` (~1 ms for ASCII; skipped above `FONT_KERNING_MAX_GLYPHS` 1024 or without kern / GPOS
+tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, nextCodepoint)` (public) and static
+`GetKerningByIndex` (binary search). Not exported by `ExportFontAsCode`; BMFont / image / BDF / default fonts have none.
+
 ## Fork changes inside upstream functions / settings
+
+- Kerning (rtext.c unless noted): `LoadFontFromMemory` (calls `LoadFontKerningData`, its TRACELOG line shows the pair
+  count), `UnloadFont` (frees `kernings`), `DrawTextEx`, `DrawTextCodepoints`, `MeasureTextEx`, `MeasureTextCodepoints`
+  (a `previousIndex` per line adds the pair amount before each glyph, reset at '\n'), `ImageTextEx` (rtextures.c, via
+  `GetGlyphKerning`, must stay in step with `MeasureTextEx`, which sizes its image). After an upstream merge, check
+  these functions for upstream changes and for new text loops over `advanceX` that should kern too.
+- `LoadFontData` (rtext.c): glyph `advanceX` rounded to the nearest pixel (`+ 0.5f`, both branches) instead of upstream's
+  truncation (2026-10-08; upstream master still truncates). Measured on a 44-character pangram: truncation made it 18-30
+  px narrower than the exact sum (7-12% at sizes 16-20), rounding within +-5 px.
 
 - `DrawMesh`, `DrawMeshInstanced` (rmodels.c): bind a material map with `slices > 0` as a texture array.
   Convention: per-vertex slice in `texcoords2.x` (DrawMesh), per-instance slice in `transforms[i].m3` (DrawMeshInstanced).

@@ -144,6 +144,10 @@ static Font LoadBMFont(const char *fileName);   // Load a BMFont file (AngelCode
 #if SUPPORT_FILEFORMAT_BDF
 static GlyphInfo *LoadFontDataBDF(const unsigned char *fileData, int dataSize, const int *codepoints, int codepointCount, int *outFontSize);
 #endif
+#if SUPPORT_FILEFORMAT_TTF
+static KerningPair *LoadFontKerningData(const unsigned char *fileData, int fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount); // Fork
+#endif
+static int GetKerningByIndex(Font font, int index, int nextIndex);  // Fork: kerning between glyphs by their indices in font.glyphs
 
 extern void LoadFontDefault(void);
 extern void UnloadFontDefault(void);
@@ -550,6 +554,7 @@ Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int
         TextIsEqual(fileExtLower, ".otf"))
     {
         font.glyphs = LoadFontData(fileData, dataSize, font.baseSize, codepoints, (codepointCount > 0)? codepointCount : 95, FONT_DEFAULT, &font.glyphCount);
+        if (font.glyphs != NULL) font.kernings = LoadFontKerningData(fileData, font.baseSize, font.glyphs, font.glyphCount, &font.kerningCount); // Fork
     }
     else
 #endif
@@ -582,7 +587,7 @@ Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int
 
         UnloadImage(atlas);
 
-        TRACELOG(LOG_INFO, "FONT: Data loaded successfully (%i pixel size | %i glyphs)", font.baseSize, font.glyphCount);
+        TRACELOG(LOG_INFO, "FONT: Data loaded successfully (%i pixel size | %i glyphs | %i kerning pairs)", font.baseSize, font.glyphCount, font.kerningCount);
     }
     else
     {
@@ -719,7 +724,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                     if (glyphs[k].image.data != NULL) // Glyph data has been found in the font
                     {
                         stbtt_GetCodepointHMetrics(&fontInfo, cp, &glyphs[k].advanceX, NULL);
-                        glyphs[k].advanceX = (int)((float)glyphs[k].advanceX*scaleFactor);
+                        glyphs[k].advanceX = (int)((float)glyphs[k].advanceX*scaleFactor + 0.5f);   // Fork: rounded (upstream truncates)
 
                         // WARNING: If requested SDF font, sdf-glyph height is definitely bigger than fontSize due to FONT_SDF_CHAR_PADDING
                         if ((type != FONT_SDF) && (cpHeight > fontSize)) TRACELOG(LOG_WARNING, "FONT: [0x%04x] Glyph height is bigger than requested font size: %i > %i", cp, cpHeight, (int)fontSize);
@@ -739,7 +744,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                     if ((cp == 0x20) || (cp == 0x3000))
                     {
                         stbtt_GetCodepointHMetrics(&fontInfo, cp, &glyphs[k].advanceX, NULL);
-                        glyphs[k].advanceX = (int)((float)glyphs[k].advanceX*scaleFactor);
+                        glyphs[k].advanceX = (int)((float)glyphs[k].advanceX*scaleFactor + 0.5f);   // Fork: rounded (upstream truncates)
 
                         Image imSpace = {
                             .data = NULL,
@@ -1017,6 +1022,7 @@ void UnloadFont(Font font)
         UnloadFontData(font.glyphs, font.glyphCount);
         UnloadTexture(font.texture);
         RL_FREE(font.recs);
+        RL_FREE(font.kernings);     // Fork
 
         TRACELOG(LOG_DEBUG, "FONT: Unloaded font data from RAM and VRAM");
     }
@@ -1220,6 +1226,7 @@ void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, f
     float textOffsetX = 0.0f;       // Offset X to next character to draw
 
     float scaleFactor = fontSize/font.baseSize;         // Character quad scaling factor
+    int previousIndex = -1;         // Glyph index of the previous character in the line, for kerning (fork)
 
     for (int i = 0; i < size;)
     {
@@ -1233,9 +1240,13 @@ void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, f
             // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
             textOffsetY += (fontSize + textLineSpacing);
             textOffsetX = 0.0f;
+            previousIndex = -1;
         }
         else
         {
+            if (previousIndex != -1) textOffsetX += (float)GetKerningByIndex(font, previousIndex, index)*scaleFactor;
+            previousIndex = index;
+
             if ((codepoint != ' ') && (codepoint != '\t'))
             {
                 DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, tint);
@@ -1294,6 +1305,7 @@ void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Ve
     float textOffsetX = 0.0f;       // Offset X to next character to draw
 
     float scaleFactor = fontSize/font.baseSize;         // Character quad scaling factor
+    int previousIndex = -1;         // Glyph index of the previous character in the line, for kerning (fork)
 
     for (int i = 0; i < codepointCount; i++)
     {
@@ -1304,9 +1316,13 @@ void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Ve
             // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
             textOffsetY += (fontSize + textLineSpacing);
             textOffsetX = 0.0f;
+            previousIndex = -1;
         }
         else
         {
+            if (previousIndex != -1) textOffsetX += (float)GetKerningByIndex(font, previousIndex, index)*scaleFactor;
+            previousIndex = index;
+
             if ((codepoints[i] != ' ') && (codepoints[i] != '\t'))
             {
                 DrawTextCodepoint(font, codepoints[i], (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, tint);
@@ -1361,6 +1377,7 @@ Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing
 
     int letter = 0;                 // Current character
     int index = 0;                  // Index position in sprite font
+    int previousIndex = -1;         // Glyph index of the previous character in the line, for kerning (fork)
 
     for (int i = 0; i < size;)
     {
@@ -1374,6 +1391,9 @@ Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing
 
         if (letter != '\n')
         {
+            if (previousIndex != -1) textWidth += GetKerningByIndex(font, previousIndex, index);
+            previousIndex = index;
+
             if (font.glyphs[index].advanceX > 0) textWidth += font.glyphs[index].advanceX;
             else textWidth += (font.recs[index].width + font.glyphs[index].offsetX);
         }
@@ -1382,6 +1402,7 @@ Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing
             if (tempTextWidth < textWidth) tempTextWidth = textWidth;
             byteCounter = 0;
             textWidth = 0;
+            previousIndex = -1;
 
             // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
             textHeight += (fontSize + textLineSpacing);
@@ -1420,6 +1441,8 @@ Vector2 MeasureTextCodepoints(Font font, const int *codepoints, int length, floa
     int letter = 0;
     // Index position in sprite font
     int index = 0;
+    // Glyph index of the previous character in the line, for kerning (fork)
+    int previousIndex = -1;
 
     for (int i = 0; i < length; i++)
     {
@@ -1430,6 +1453,9 @@ Vector2 MeasureTextCodepoints(Font font, const int *codepoints, int length, floa
         {
             glyphCounter++;
 
+            if (previousIndex != -1) textWidth += GetKerningByIndex(font, previousIndex, index);
+            previousIndex = index;
+
             if (font.glyphs[index].advanceX > 0) textWidth += font.glyphs[index].advanceX;
             else textWidth += (font.recs[index].width + font.glyphs[index].offsetX);
         }
@@ -1439,6 +1465,7 @@ Vector2 MeasureTextCodepoints(Font font, const int *codepoints, int length, floa
 
             textWidth = 0;
             glyphCounter = 0;
+            previousIndex = -1;
 
             // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
             textHeight += (fontSize + textLineSpacing);
@@ -1506,6 +1533,15 @@ Rectangle GetGlyphAtlasRec(Font font, int codepoint)
     rec = font.recs[GetGlyphIndex(font, codepoint)];
 
     return rec;
+}
+
+// Get kerning between two codepoints in pixels at font base size, 0 if none (fork)
+// NOTE: Text drawing and measuring functions apply it already, this is for custom text layout code
+int GetGlyphKerning(Font font, int codepoint, int nextCodepoint)
+{
+    if (font.kerningCount == 0) return 0;
+
+    return GetKerningByIndex(font, GetGlyphIndex(font, codepoint), GetGlyphIndex(font, nextCodepoint));
 }
 
 //----------------------------------------------------------------------------------
@@ -2586,6 +2622,81 @@ int GetCodepointPrevious(const char *text, int *codepointSize)
 //----------------------------------------------------------------------------------
 // Module Internal Functions Definition
 //----------------------------------------------------------------------------------
+#if SUPPORT_FILEFORMAT_TTF
+// Load kerning pairs between the loaded glyphs (fork), amounts in whole pixels at fontSize, pairs rounding to 0 skipped
+// NOTE: stb_truetype reads the 'kern' table, or only GPOS when the font has one (pair adjustment lookups whose
+// value format is x advance only: kerning in extension lookups or with device/variation tables is not found)
+static KerningPair *LoadFontKerningData(const unsigned char *fileData, int fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount)
+{
+#ifndef FONT_KERNING_MAX_GLYPHS
+    #define FONT_KERNING_MAX_GLYPHS       1024      // Kerning is not loaded for more glyphs (glyphCount^2 lookups, ~100 ns each)
+#endif
+
+    KerningPair *kernings = NULL;
+    *kerningCount = 0;
+
+    stbtt_fontinfo fontInfo = { 0 };
+    if ((glyphCount > FONT_KERNING_MAX_GLYPHS) || !stbtt_InitFont(&fontInfo, (unsigned char *)fileData, 0)) return NULL;
+    if ((fontInfo.kern == 0) && (fontInfo.gpos == 0)) return NULL;     // No kerning tables in the font
+
+    // Same scale as LoadFontData()
+    float scaleFactor = stbtt_ScaleForPixelHeight(&fontInfo, (float)fontSize);
+
+    // Glyph indices in the font file, looked up once
+    int *fileGlyphs = (int *)RL_MALLOC(glyphCount*sizeof(int));
+    for (int i = 0; i < glyphCount; i++) fileGlyphs[i] = stbtt_FindGlyphIndex(&fontInfo, glyphs[i].value);
+
+    int capacity = 0;
+
+    // NOTE: Loop order keeps the pairs sorted by first, then second (required by GetKerningByIndex())
+    for (int i = 0; i < glyphCount; i++)
+    {
+        for (int j = 0; j < glyphCount; j++)
+        {
+            int kern = stbtt_GetGlyphKernAdvance(&fontInfo, fileGlyphs[i], fileGlyphs[j]);
+            if (kern == 0) continue;
+
+            float amount = (float)kern*scaleFactor;
+            int roundedAmount = (amount >= 0.0f)? (int)(amount + 0.5f) : -(int)(-amount + 0.5f);
+            if (roundedAmount == 0) continue;
+
+            if (*kerningCount == capacity)
+            {
+                capacity = (capacity == 0)? 64 : capacity*2;
+                kernings = (KerningPair *)RL_REALLOC(kernings, capacity*sizeof(KerningPair));
+            }
+
+            kernings[*kerningCount] = (KerningPair){ i, j, roundedAmount };
+            (*kerningCount)++;
+        }
+    }
+
+    RL_FREE(fileGlyphs);
+
+    return kernings;
+}
+#endif
+
+// Get kerning between two glyphs by their indices in font.glyphs, in pixels at font.baseSize, 0 if none (fork)
+// NOTE: Binary search in font.kernings (sorted by first, then second)
+static int GetKerningByIndex(Font font, int index, int nextIndex)
+{
+    int low = 0;
+    int high = font.kerningCount - 1;
+
+    while (low <= high)
+    {
+        int middle = (low + high)/2;
+        KerningPair pair = font.kernings[middle];
+
+        if ((pair.first == index) && (pair.second == nextIndex)) return pair.amount;
+        else if ((pair.first < index) || ((pair.first == index) && (pair.second < nextIndex))) low = middle + 1;
+        else high = middle - 1;
+    }
+
+    return 0;
+}
+
 #if SUPPORT_FILEFORMAT_FNT || SUPPORT_FILEFORMAT_BDF
 // Read a line from memory
 // REQUIRES: memcpy()

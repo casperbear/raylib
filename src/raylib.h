@@ -314,6 +314,13 @@ typedef struct GlyphInfo {
     Image image;            // Character image data
 } GlyphInfo;
 
+// KerningPair, advance adjustment between two glyphs (fork)
+typedef struct KerningPair {
+    int first;              // Index of the left glyph in Font.glyphs
+    int second;             // Index of the right glyph in Font.glyphs
+    int amount;             // Advance adjustment in pixels at Font.baseSize (usually negative)
+} KerningPair;
+
 // Font, font texture and GlyphInfo array data
 typedef struct Font {
     int baseSize;           // Base size (default chars height)
@@ -322,6 +329,8 @@ typedef struct Font {
     Texture2D texture;      // Texture atlas containing the glyphs
     Rectangle *recs;        // Rectangles in texture for the glyphs
     GlyphInfo *glyphs;      // Glyphs info data
+    int kerningCount;       // Number of kerning pairs (fork)
+    KerningPair *kernings;  // Kerning pairs sorted by first, then second (fork, NULL if none)
 } Font;
 
 // Camera, defines position/orientation in 3d space
@@ -1544,6 +1553,7 @@ RLAPI Vector2 MeasureTextCodepoints(Font font, const int *codepoints, int length
 RLAPI int GetGlyphIndex(Font font, int codepoint);                                          // Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
 RLAPI GlyphInfo GetGlyphInfo(Font font, int codepoint);                                     // Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
 RLAPI Rectangle GetGlyphAtlasRec(Font font, int codepoint);                                 // Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
+RLAPI int GetGlyphKerning(Font font, int codepoint, int nextCodepoint);                    // Get kerning between two codepoints in pixels at font base size, 0 if none (fork)
 
 // Text codepoints management functions (unicode characters)
 RLAPI char *LoadUTF8(const int *codepoints, int length);                                    // Load UTF-8 text encoded from codepoints array

@@ -74,6 +74,5 @@ tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, 
 
 - `rlEnableTextureArray` / `rlDisableTextureArray` contain `return 0;` in `void` functions (only in the GL 1.1/2.1 branch).
 - rmodels.c calls `rlDisableTextureArray(id)` with an argument although it takes `void` (MSVC warning only).
-- `ImageMipmapsEx` calls `TRACELOG` without a log level (upstream `ImageMipmaps` uses `TRACELOGD`).
 - `rlTextureArrayParameters`: `RL_TEXTURE_MIPMAP_BIAS_RATIO` case has no `break` (falls into `default: break`, harmless).
 - `LoadTextureArrayFromImages` ignores source mipmaps; uploads level 0 only.

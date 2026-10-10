@@ -2639,8 +2639,9 @@ int GetCodepointPrevious(const char *text, int *codepointSize)
 //----------------------------------------------------------------------------------
 #if SUPPORT_FILEFORMAT_TTF
 // Load kerning pairs between the loaded glyphs (fork), amounts in whole pixels at fontSize, pairs rounding to 0 skipped
-// NOTE: stb_truetype reads the 'kern' table, or only GPOS when the font has one (pair adjustment lookups whose
-// value format is x advance only: kerning in extension lookups or with device/variation tables is not found)
+// NOTE: stb_truetype reads the 'kern' table, or only GPOS when the font has one: pair adjustment lookups of 'kern'
+// features, extension lookups included (fork patch), summed over the lookups; only value format x advance is read
+// (kerning with device/variation tables is not found)
 static KerningPair *LoadFontKerningData(const unsigned char *fileData, int fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount)
 {
 #ifndef FONT_KERNING_MAX_GLYPHS

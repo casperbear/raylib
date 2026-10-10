@@ -2493,6 +2493,28 @@ static stbtt_int32  stbtt__GetGlyphClass(stbtt_uint8 *classDefTable, int glyph)
 // Define to STBTT_assert(x) if you want to break on unimplemented formats.
 #define STBTT_GPOS_TODO_assert(x)
 
+// Fork (MixMage): is lookup lookupIndex used by a 'kern' feature (of any script)?
+static int stbtt__IsGPOSKernLookup(stbtt_uint8 *gpos, int lookupIndex)
+{
+   stbtt_uint8 *featureList = gpos + ttUSHORT(gpos+6);
+   stbtt_uint16 featureCount = ttUSHORT(featureList);
+   stbtt_int32 i, j;
+
+   for (i=0; i<featureCount; ++i) {
+      stbtt_uint8 *featureRecord = featureList + 2 + 6 * i;
+      stbtt_uint8 *feature;
+      stbtt_uint16 lookupIndexCount;
+      if (!stbtt_tag(featureRecord, "kern")) continue;
+      feature = featureList + ttUSHORT(featureRecord + 4);
+      lookupIndexCount = ttUSHORT(feature + 2);
+      for (j=0; j<lookupIndexCount; ++j)
+         if (ttUSHORT(feature + 4 + 2 * j) == lookupIndex) return 1;
+   }
+   return 0;
+}
+
+// Fork (MixMage): sums the first applying pair subtable of every 'kern' feature lookup, following extension lookups
+// (type 9). Upstream returned the first subtable covering glyph1 in any pair lookup, and skipped extension lookups.
 static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, int glyph1, int glyph2)
 {
    stbtt_uint16 lookupListOffset;
@@ -2500,6 +2522,7 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
    stbtt_uint16 lookupCount;
    stbtt_uint8 *data;
    stbtt_int32 i, sti;
+   stbtt_int32 xAdvanceSum = 0; // Fork
 
    if (!info->gpos) return 0;
 
@@ -2519,15 +2542,23 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
       stbtt_uint16 lookupType = ttUSHORT(lookupTable);
       stbtt_uint16 subTableCount = ttUSHORT(lookupTable + 4);
       stbtt_uint8 *subTableOffsets = lookupTable + 6;
-      if (lookupType != 2) // Pair Adjustment Positioning Subtable
+      if (lookupType != 2 && lookupType != 9) // Pair Adjustment Positioning Subtable, Extension Positioning (fork)
          continue;
+      if (!stbtt__IsGPOSKernLookup(data, i)) continue; // Fork
 
       for (sti=0; sti<subTableCount; sti++) {
          stbtt_uint16 subtableOffset = ttUSHORT(subTableOffsets + 2 * sti);
          stbtt_uint8 *table = lookupTable + subtableOffset;
-         stbtt_uint16 posFormat = ttUSHORT(table);
-         stbtt_uint16 coverageOffset = ttUSHORT(table + 2);
-         stbtt_int32 coverageIndex = stbtt__GetCoverageIndex(table + coverageOffset, glyph1);
+         stbtt_uint16 posFormat;
+         stbtt_uint16 coverageOffset;
+         stbtt_int32 coverageIndex;
+         if (lookupType == 9) { // Fork: extension subtable = format, real lookup type, 32-bit offset to the real subtable
+            if (ttUSHORT(table + 2) != 2) break;
+            table += ttULONG(table + 4);
+         }
+         posFormat = ttUSHORT(table);
+         coverageOffset = ttUSHORT(table + 2);
+         coverageIndex = stbtt__GetCoverageIndex(table + coverageOffset, glyph1);
          if (coverageIndex == -1) continue;
 
          switch (posFormat) {
@@ -2544,7 +2575,7 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
                   stbtt_uint16 pairValueCount = ttUSHORT(pairValueTable);
                   stbtt_uint8 *pairValueArray = pairValueTable + 2;
 
-                  if (coverageIndex >= pairSetCount) return 0;
+                  if (coverageIndex >= pairSetCount) continue; // Fork: was return 0
 
                   needle=glyph2;
                   r=pairValueCount-1;
@@ -2564,11 +2595,12 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
                         l = m + 1;
                      else {
                         stbtt_int16 xAdvance = ttSHORT(pairValue + 2);
-                        return xAdvance;
+                        xAdvanceSum += xAdvance; // Fork: was return xAdvance
+                        goto next_lookup; // Fork
                      }
                   }
                } else
-                  return 0;
+                  continue; // Fork: was return 0
                break;
             }
 
@@ -2586,25 +2618,27 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
                   stbtt_uint8 *class1Records, *class2Records;
                   stbtt_int16 xAdvance;
 
-                  if (glyph1class < 0 || glyph1class >= class1Count) return 0; // malformed
-                  if (glyph2class < 0 || glyph2class >= class2Count) return 0; // malformed
+                  if (glyph1class < 0 || glyph1class >= class1Count) continue; // malformed (fork: was return 0)
+                  if (glyph2class < 0 || glyph2class >= class2Count) continue; // malformed (fork: was return 0)
 
                   class1Records = table + 16;
                   class2Records = class1Records + 2 * (glyph1class * class2Count);
                   xAdvance = ttSHORT(class2Records + 2 * glyph2class);
-                  return xAdvance;
+                  xAdvanceSum += xAdvance; // Fork: was return xAdvance
+                  goto next_lookup; // Fork
                } else
-                  return 0;
+                  continue; // Fork: was return 0
                break;
             }
 
             default:
-               return 0; // Unsupported position format
+               continue; // Unsupported position format (fork: was return 0)
          }
       }
+      next_lookup:; // Fork
    }
 
-   return 0;
+   return xAdvanceSum; // Fork: was return 0
 }
 
 STBTT_DEF int  stbtt_GetGlyphKernAdvance(const stbtt_fontinfo *info, int g1, int g2)

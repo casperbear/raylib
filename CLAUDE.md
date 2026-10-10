@@ -68,6 +68,12 @@ tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, 
 - config.h: `RL_CULL_DISTANCE_NEAR 0.125`, `RL_CULL_DISTANCE_FAR 2000.0`, `SUPPORT_SCREEN_CAPTURE 0` (no F12 screenshots).
 - rlgl.h: commented-out `// #define RLGL_IMPLEMENTATION` for IntelliSense; must stay commented when building.
 - external/stb_image.h: commented-out "dirty alpha" cleanup experiments in the PNG parser (inactive).
+- external/stb_truetype.h (v1.26 = latest upstream, 2021), `stbtt__GetGlyphGPOSInfoAdvance` + new static
+  `stbtt__IsGPOSKernLookup` (2026-10-10, "Fork" comments): only lookups of 'kern' features (any script), extension
+  lookups (type 9) followed, the first applying subtable of each lookup summed over the lookups (upstream: the first
+  subtable covering glyph1 in any pair lookup, an unsupported one aborted with 0). Still unsupported: value formats
+  other than XAdvance only, GPOS 1.1, falling back to 'kern' when GPOS has no kern feature. If upstream stb ever
+  updates this function, re-apply by hand.
 - raylib.h: `InitWindow` comment notes that 0 width/height opens fullscreen.
 
 ## Known quirks in fork code (not yet fixed)

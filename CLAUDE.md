@@ -49,6 +49,18 @@ Filled in `LoadFontFromMemory` (TTF/OTF only) by static `LoadFontKerningData` (r
 tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, nextCodepoint)` (public) and static
 `GetKerningByIndex` (binary search). Not exported by `ExportFontAsCode`; BMFont / image / BDF / default fonts have none.
 
+## Fork-only API (exact refresh rate, 2026-10-11)
+
+`GetFloatMonitorRefreshRate(monitor)` (rcore_desktop_glfw.c; GLFW platform only, the other platform files don't define
+it): Windows only, 0 elsewhere or on failure. Static `Win32GetDisplayRefreshRate`: `QueryDisplayConfig` active paths, the
+one whose source GDI name (`DisplayConfigGetDeviceInfo`) equals `glfwGetWin32Adapter` ("\\.\DISPLAY1"); rate = target
+mode vSyncFreq, else the path's refreshRate. Windows may round them (the human's 1920x1200 monitor: 60/1 in both for
+154 MHz / (2080 x 1235) = 59.950 Hz). The real rate, pixelRate / (totalWidth x totalHeight), stays commented out: as
+MixMage's frame cap (2026-10-11, V-Sync, 5 s average in the F11 overlay) 59.950 gave 59.5-59.9 fps (0-2 dropped frames
+per 5 s), the rounded 60 a steady 59.95 with an occasional single drop (59.77 = one per 5 s window). The
+Win32 structs are hand-declared with plain C types (no windows.h, as in win32_clipboard.h); sizes and offsets were
+checked against the SDK with a compile-time sizeof / offsetof test (2026-10-11).
+
 ## Fork changes inside upstream functions / settings
 
 - Kerning (rtext.c unless noted): `LoadFontFromMemory` (calls `LoadFontKerningData`, its TRACELOG line shows the pair
@@ -75,6 +87,9 @@ tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, 
   other than XAdvance only, GPOS 1.1, falling back to 'kern' when GPOS has no kern feature. If upstream stb ever
   updates this function, re-apply by hand.
 - raylib.h: `InitWindow` comment notes that 0 width/height opens fullscreen.
+- `SetTargetFPS` (rcore.c, raylib.h): `float fps` instead of `int` (2026-10-11; `CORE.Time.target` was already a double),
+  for fractional rates and MixMage's planned adaptive frame cap. `fps < 1` still means no limit; int callers (examples,
+  automation event playback) convert implicitly.
 
 ## Known quirks in fork code (not yet fixed)
 

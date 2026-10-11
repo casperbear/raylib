@@ -1013,6 +1013,151 @@ int GetMonitorRefreshRate(int monitor)
     return refresh;
 }
 
+#if defined(_WIN32)
+// Fork: QueryDisplayConfig declarations (wingdi.h / winuser.h layouts, plain C types), declared here like
+// win32_clipboard.h does, since windows.h clashes with raylib names (Rectangle, CloseWindow, DrawText...)
+typedef struct Win32DisplayConfigRational { unsigned int numerator; unsigned int denominator; } Win32DisplayConfigRational;
+
+typedef struct Win32DisplayConfigPathInfo {             // DISPLAYCONFIG_PATH_INFO (72 bytes)
+    unsigned int sourceAdapterIdLow;                    // sourceInfo (DISPLAYCONFIG_PATH_SOURCE_INFO)
+    int sourceAdapterIdHigh;
+    unsigned int sourceId;
+    unsigned int sourceModeInfoIdx;
+    unsigned int sourceStatusFlags;
+    unsigned int targetAdapterIdLow;                    // targetInfo (DISPLAYCONFIG_PATH_TARGET_INFO)
+    int targetAdapterIdHigh;
+    unsigned int targetId;
+    unsigned int targetModeInfoIdx;                     // Plain index without QDC_VIRTUAL_MODE_AWARE
+    int outputTechnology;
+    int rotation;
+    int scaling;
+    Win32DisplayConfigRational refreshRate;
+    int scanLineOrdering;
+    int targetAvailable;
+    unsigned int targetStatusFlags;
+    unsigned int flags;
+} Win32DisplayConfigPathInfo;
+
+typedef struct Win32DisplayConfigModeInfo {             // DISPLAYCONFIG_MODE_INFO (64 bytes)
+    int infoType;                                       // 2 = DISPLAYCONFIG_MODE_INFO_TYPE_TARGET
+    unsigned int id;
+    unsigned int adapterIdLow;
+    int adapterIdHigh;
+    unsigned long long pixelRate;                       // targetMode.targetVideoSignalInfo (the union's largest member)
+    Win32DisplayConfigRational hSyncFreq;
+    Win32DisplayConfigRational vSyncFreq;
+    unsigned int activeWidth;
+    unsigned int activeHeight;
+    unsigned int totalWidth;
+    unsigned int totalHeight;
+    unsigned int videoStandard;
+    int videoScanLineOrdering;
+} Win32DisplayConfigModeInfo;
+
+typedef struct Win32DisplayConfigSourceDeviceName {     // DISPLAYCONFIG_SOURCE_DEVICE_NAME (84 bytes)
+    int type;                                           // header: 1 = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME
+    unsigned int size;
+    unsigned int adapterIdLow;
+    int adapterIdHigh;
+    unsigned int id;
+    unsigned short viewGdiDeviceName[32];               // e.g. "\\.\DISPLAY1"
+} Win32DisplayConfigSourceDeviceName;
+
+__declspec(dllimport) long __stdcall GetDisplayConfigBufferSizes(unsigned int flags, unsigned int *numPathArrayElements, unsigned int *numModeInfoArrayElements);
+__declspec(dllimport) long __stdcall QueryDisplayConfig(unsigned int flags, unsigned int *numPathArrayElements, Win32DisplayConfigPathInfo *pathArray,
+    unsigned int *numModeInfoArrayElements, Win32DisplayConfigModeInfo *modeInfoArray, void *currentTopologyId);
+__declspec(dllimport) long __stdcall DisplayConfigGetDeviceInfo(Win32DisplayConfigSourceDeviceName *requestPacket);
+
+// Fork: exact refresh rate of the display with this GDI device name (glfwGetWin32Adapter(), e.g. "\\.\DISPLAY1"), 0 on failure
+static float Win32GetDisplayRefreshRate(const char *gdiDeviceName)
+{
+    float refresh = 0.0f;
+    unsigned int pathCount = 0;
+    unsigned int modeCount = 0;
+    Win32DisplayConfigPathInfo *paths = NULL;
+    Win32DisplayConfigModeInfo *modes = NULL;
+    long result = -1;
+
+    // ERROR_INSUFFICIENT_BUFFER (122): the display configuration changed between the two calls, try again
+    for (int attempt = 0; (attempt < 3) && (gdiDeviceName != NULL); attempt++)
+    {
+        RL_FREE(paths);
+        RL_FREE(modes);
+        paths = NULL;
+        modes = NULL;
+
+        result = GetDisplayConfigBufferSizes(2, &pathCount, &modeCount); // 2 = QDC_ONLY_ACTIVE_PATHS
+        if ((result != 0) || (pathCount == 0)) break;
+
+        paths = (Win32DisplayConfigPathInfo *)RL_CALLOC(pathCount, sizeof(Win32DisplayConfigPathInfo));
+        modes = (Win32DisplayConfigModeInfo *)RL_CALLOC((modeCount > 0)? modeCount : 1, sizeof(Win32DisplayConfigModeInfo));
+        result = QueryDisplayConfig(2, &pathCount, paths, &modeCount, modes, NULL);
+        if (result != 122) break;
+    }
+
+    for (unsigned int i = 0; (result == 0) && (i < pathCount); i++)
+    {
+        Win32DisplayConfigSourceDeviceName sourceName = { 0 };
+        sourceName.type = 1;
+        sourceName.size = sizeof(Win32DisplayConfigSourceDeviceName);
+        sourceName.adapterIdLow = paths[i].sourceAdapterIdLow;
+        sourceName.adapterIdHigh = paths[i].sourceAdapterIdHigh;
+        sourceName.id = paths[i].sourceId;
+        if (DisplayConfigGetDeviceInfo(&sourceName) != 0) continue;
+
+        // Device names are ASCII
+        bool sameName = true;
+        for (int c = 0; c < 32; c++)
+        {
+            if (sourceName.viewGdiDeviceName[c] != (unsigned char)gdiDeviceName[c]) { sameName = false; break; }
+            if (gdiDeviceName[c] == '\0') break;
+        }
+        if (!sameName) continue;
+
+        // The reported rate: the target mode's vSyncFreq, else the path's rate. Windows may round it (seen 2026-10-11: both
+        // 60/1 for a 154 MHz / (2080 x 1235) = 59.950 Hz signal), which there kept MixMage's frame cap above the real rate
+        Win32DisplayConfigRational rate = paths[i].refreshRate;
+        unsigned int modeIndex = paths[i].targetModeInfoIdx;
+        if ((modeIndex < modeCount) && (modes[modeIndex].infoType == 2))
+        {
+            Win32DisplayConfigModeInfo *mode = &modes[modeIndex];
+
+            // The real rate from the pixel clock (progressive scan only), not used: as MixMage's frame cap (2026-10-11) its
+            // 59.950 gave a 5 s average of 59.5-59.9 fps (dropped frames), the reported 60 a steady 59.95 with occasional drops
+            //double totalPixels = (double)mode->totalWidth*(double)mode->totalHeight;
+            //if ((mode->videoScanLineOrdering == 1) && (mode->pixelRate > 0) && (totalPixels > 0.0)) refresh = (float)((double)mode->pixelRate/totalPixels);
+            //else rate = mode->vSyncFreq;
+
+            rate = mode->vSyncFreq;
+        }
+        if ((refresh <= 0.0f) && (rate.numerator > 0) && (rate.denominator > 0)) refresh = (float)((double)rate.numerator/(double)rate.denominator);
+        break; // Cloned displays share the source: the first path wins
+    }
+
+    RL_FREE(paths);
+    RL_FREE(modes);
+
+    return refresh;
+}
+#endif
+
+// Get selected monitor refresh rate with its fraction (e.g. 59.94 where GetMonitorRefreshRate() gives 59)
+// NOTE: Fork: Windows only (QueryDisplayConfig); 0 elsewhere or on failure
+float GetFloatMonitorRefreshRate(int monitor)
+{
+    float refresh = 0.0f;
+
+#if defined(_WIN32)
+    int monitorCount = 0;
+    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+
+    if ((monitor >= 0) && (monitor < monitorCount)) refresh = Win32GetDisplayRefreshRate(glfwGetWin32Adapter(monitors[monitor]));
+    else TRACELOG(LOG_WARNING, "GLFW: Failed to find selected monitor");
+#endif
+
+    return refresh;
+}
+
 // Get the human-readable, UTF-8 encoded name of the selected monitor
 const char *GetMonitorName(int monitor)
 {

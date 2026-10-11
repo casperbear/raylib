@@ -1036,6 +1036,7 @@ RLAPI int GetMonitorHeight(int monitor);                          // Get specifi
 RLAPI int GetMonitorPhysicalWidth(int monitor);                   // Get specified monitor physical width in millimetres
 RLAPI int GetMonitorPhysicalHeight(int monitor);                  // Get specified monitor physical height in millimetres
 RLAPI int GetMonitorRefreshRate(int monitor);                     // Get specified monitor refresh rate
+RLAPI float GetFloatMonitorRefreshRate(int monitor);              // Get specified monitor refresh rate with its fraction (fork: Windows only, 0 elsewhere or on failure)
 RLAPI Vector2 GetWindowPosition(void);                            // Get window position XY on monitor
 RLAPI Vector2 GetWindowScaleDPI(void);                            // Get window scale DPI factor
 RLAPI const char *GetMonitorName(int monitor);                    // Get the human-readable, UTF-8 encoded name of the specified monitor
@@ -1100,7 +1101,7 @@ RLAPI Matrix GetCameraMatrix(Camera camera);                            // Get c
 RLAPI Matrix GetCameraMatrix2D(Camera2D camera);                        // Get camera 2d transform matrix
 
 // Timing-related functions
-RLAPI void SetTargetFPS(int fps);                       // Set target FPS (maximum)
+RLAPI void SetTargetFPS(float fps);                     // Set target FPS (maximum)
 RLAPI float GetFrameTime(void);                         // Get time in seconds for last frame drawn (delta time)
 RLAPI double GetTime(void);                             // Get elapsed time in seconds since InitWindow()
 RLAPI int GetFPS(void);                                 // Get current FPS

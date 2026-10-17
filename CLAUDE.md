@@ -36,7 +36,7 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 | `rlGenTextureMipmapsEx(..., mipmapsDesired)` | rlgl.h | `rlGenTextureMipmaps`, caps `GL_TEXTURE_MAX_LEVEL` |
 | `rlGenTextureArrayMipmapsEx(..., mipmapsDesired)` | rlgl.h | `rlGenTextureMipmaps`, caps `GL_TEXTURE_MAX_LEVEL` |
 | `ImageMipmapsEx(image, mipmapsDesired)` | rtextures.c | `ImageMipmaps`; first half of levels use `ImageResize`, the rest `ImageResizeNN` |
-| `LoadTextureArrayFromImages(images, count)` | rtextures.c | `LoadTextureFromImage`; all images must match size/format/mipmaps |
+| `LoadTextureArrayFromImages(images, count)` | rtextures.c | `LoadTextureFromImage`; all images must match size/format/mipmaps; source mipmaps ignored (level 0 only) |
 | `LoadTextureArrayFromAtlasImage(atlas, columns, rows)` | rtextures.c | `LoadTextureFromImage`; width/height = one slice |
 | `GenTextureArrayMipmaps`, `GenTextureMipmapsEx`, `GenTextureArrayMipmapsEx` | rtextures.c | `GenTextureMipmaps` |
 | `SetTextureArrayFilter(texture, filter)` | rtextures.c | `SetTextureFilter` |
@@ -47,7 +47,7 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 `Font.kerningCount` / `Font.kernings` (`KerningPair { first, second, amount }`: glyph indices into `Font.glyphs`, whole
 pixels at `baseSize`, sorted by first then second): the LAST fields of `Font`, so positional initializers keep working.
 Filled in `LoadFontFromMemory` (TTF/OTF only) by static `LoadFontKerningData` (rtext.c): glyphCount^2 lookups through
-`stbtt_GetGlyphKernAdvance` (~1 ms for ASCII; skipped above `FONT_KERNING_MAX_GLYPHS` 1024 or without kern / GPOS
+`stbtt_GetGlyphKernAdvance` (~0.2-3 ms per font for ASCII; skipped above `FONT_KERNING_MAX_GLYPHS` 1024 or without kern / GPOS
 tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, nextCodepoint)` (public) and static
 `GetKerningByIndex` (binary search). Not exported by `ExportFontAsCode`; BMFont / image / BDF / default fonts have none.
 
@@ -92,8 +92,3 @@ checked against the SDK with a compile-time sizeof / offsetof test (2026-10-11).
 - `SetTargetFPS` (rcore.c, raylib.h): `float fps` instead of `int` (2026-10-11; `CORE.Time.target` was already a double),
   for fractional rates and MixMage's planned adaptive frame cap. `fps < 1` still means no limit; int callers (examples,
   automation event playback) convert implicitly.
-
-## Known quirks in fork code (not yet fixed)
-
-- `rlTextureArrayParameters`: `RL_TEXTURE_MIPMAP_BIAS_RATIO` case has no `break` (falls into `default: break`, harmless).
-- `LoadTextureArrayFromImages` ignores source mipmaps; uploads level 0 only.

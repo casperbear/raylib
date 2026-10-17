@@ -1683,7 +1683,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
             if ((i == MATERIAL_MAP_IRRADIANCE) ||
                 (i == MATERIAL_MAP_PREFILTER) ||
                 (i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
-            else if (material.maps[i].texture.slices > 0) rlDisableTextureArray(material.maps[i].texture.id);
+            else if (material.maps[i].texture.slices > 0) rlDisableTextureArray();
             else rlDisableTexture();
         }
     }
@@ -1924,7 +1924,7 @@ void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, i
             if ((i == MATERIAL_MAP_IRRADIANCE) ||
                 (i == MATERIAL_MAP_PREFILTER) ||
                 (i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
-            else if (material.maps[i].texture.slices > 0) rlDisableTextureArray(material.maps[i].texture.id);
+            else if (material.maps[i].texture.slices > 0) rlDisableTextureArray();
             else rlDisableTexture();
         }
     }

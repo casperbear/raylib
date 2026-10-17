@@ -1729,7 +1729,6 @@ void rlEnableTextureArray(unsigned int id)
 {
 #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
     TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
-    return 0;
 #else
     glBindTexture(GL_TEXTURE_2D_ARRAY, id);
 #endif
@@ -1739,7 +1738,6 @@ void rlDisableTextureArray(void)
 {
 #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21)
     TRACELOG(LOG_WARNING, "TEXTURE: Texture Arrays not supported on this graphics API (OpenGL 1.1/2.1)");
-    return 0;
 #else
     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 #endif

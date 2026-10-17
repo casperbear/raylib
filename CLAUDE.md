@@ -1,6 +1,8 @@
 # casperbear/raylib fork
 
 Fork of raysan5/raylib (`upstream` remote) used by MixMage (`D:\backup\projects\MixMage`).
+Public repo (github.com/casperbear/raylib): keep this file and everything committed here free of personal information
+(people's names, family, e-mail addresses, user-profile paths such as `C:\Users\...`).
 Upstream is merged periodically via GitHub "Merge branch 'raysan5:master' into master".
 After a merge, `src/raylib.h`, `src/raymath.h`, `src/rlgl.h` and the built `raylib.lib` are copied
 into `MixMage/RayLib/include` and `MixMage/RayLib/lib`.
@@ -93,7 +95,5 @@ checked against the SDK with a compile-time sizeof / offsetof test (2026-10-11).
 
 ## Known quirks in fork code (not yet fixed)
 
-- `rlEnableTextureArray` / `rlDisableTextureArray` contain `return 0;` in `void` functions (only in the GL 1.1/2.1 branch).
-- rmodels.c calls `rlDisableTextureArray(id)` with an argument although it takes `void` (MSVC warning only).
 - `rlTextureArrayParameters`: `RL_TEXTURE_MIPMAP_BIAS_RATIO` case has no `break` (falls into `default: break`, harmless).
 - `LoadTextureArrayFromImages` ignores source mipmaps; uploads level 0 only.

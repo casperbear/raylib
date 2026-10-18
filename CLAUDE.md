@@ -45,7 +45,7 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 ## Fork-only API (kerning, 2026-10-08)
 
 `Font.kerningCount` / `Font.kernings` (`KerningPair { first, second, amount }`: glyph indices into `Font.glyphs`, whole
-pixels at `baseSize`, sorted by first then second): the LAST fields of `Font`, so positional initializers keep working.
+pixels at the loaded size (drawn at `baseSize`), sorted by first then second): the LAST fields of `Font`, so positional initializers keep working.
 Filled in `LoadFontFromMemory` (TTF/OTF only) by static `LoadFontKerningData` (rtext.c): glyphCount^2 lookups through
 `stbtt_GetGlyphKernAdvance` (~0.2-3 ms per font for ASCII; skipped above `FONT_KERNING_MAX_GLYPHS` 1024 or without kern / GPOS
 tables), amounts rounded, zero pairs dropped. `GetGlyphKerning(font, codepoint, nextCodepoint)` (public) and static
@@ -92,3 +92,9 @@ checked against the SDK with a compile-time sizeof / offsetof test (2026-10-11).
 - `SetTargetFPS` (rcore.c, raylib.h): `float fps` instead of `int` (2026-10-11; `CORE.Time.target` was already a double),
   for fractional rates and MixMage's planned adaptive frame cap. `fps < 1` still means no limit; int callers (examples,
   automation event playback) convert implicitly.
+- `LoadFontEx`, `LoadFontFromMemory`, `LoadFontData` (rtext.c, raylib.h): `float fontSize` instead of `int` (2026-10-18;
+  stb_truetype's scale was already a float), for fractional sizes: stb_truetype does not hint, so MixMage picks the size
+  whose x-height is a whole number of pixels. Glyphs and kerning (`LoadFontKerningData`, float too) use the exact size;
+  `Font.baseSize` = the size rounded (`+ 0.5f`), also used inside `LoadFontData` for the space glyph images and the
+  "glyph height is bigger" warning; `GenImageFontAtlas` keeps `int` and gets baseSize. Drawn at baseSize the atlas is
+  1:1. Integer sizes behave as before; int callers convert implicitly.

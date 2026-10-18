@@ -145,7 +145,7 @@ static Font LoadBMFont(const char *fileName);   // Load a BMFont file (AngelCode
 static GlyphInfo *LoadFontDataBDF(const unsigned char *fileData, int dataSize, const int *codepoints, int codepointCount, int *outFontSize);
 #endif
 #if SUPPORT_FILEFORMAT_TTF
-static KerningPair *LoadFontKerningData(const unsigned char *fileData, int fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount); // Fork
+static KerningPair *LoadFontKerningData(const unsigned char *fileData, float fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount); // Fork
 #endif
 static int GetKerningByIndex(Font font, int index, int nextIndex);  // Fork: kerning between glyphs by their indices in font.glyphs
 
@@ -387,8 +387,8 @@ Font LoadFont(const char *fileName)
 
 // Load font from file with defined codepoints and generation size
 // NOTE: NULL for codepoints and 0 for codepointCount to load the default character set (32..126),
-// font size is provided in pixels height
-Font LoadFontEx(const char *fileName, int fontSize, const int *codepoints, int codepointCount)
+// font size is provided in pixels height (fork: float, a fractional size rasterizes at that exact scale, Font.baseSize rounds it)
+Font LoadFontEx(const char *fileName, float fontSize, const int *codepoints, int codepointCount)
 {
     Font font = { 0 };
 
@@ -539,22 +539,22 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
 }
 
 // Load font from memory buffer, fileType refers to extension: i.e. ".ttf"
-Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, const int *codepoints, int codepointCount)
+Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, float fontSize, const int *codepoints, int codepointCount)
 {
     Font font = { 0 };
 
     char fileExtLower[16] = { 0 };
     snprintf(fileExtLower, 16, "%s", TextToLower(fileType));
 
-    font.baseSize = fontSize;
+    font.baseSize = (int)(fontSize + 0.5f);     // Fork: fontSize may be fractional (drawn at baseSize, the atlas is 1:1)
     font.glyphPadding = 0;
 
 #if SUPPORT_FILEFORMAT_TTF
     if (TextIsEqual(fileExtLower, ".ttf") ||
         TextIsEqual(fileExtLower, ".otf"))
     {
-        font.glyphs = LoadFontData(fileData, dataSize, font.baseSize, codepoints, (codepointCount > 0)? codepointCount : 95, FONT_DEFAULT, &font.glyphCount);
-        if (font.glyphs != NULL) font.kernings = LoadFontKerningData(fileData, font.baseSize, font.glyphs, font.glyphCount, &font.kerningCount); // Fork
+        font.glyphs = LoadFontData(fileData, dataSize, fontSize, codepoints, (codepointCount > 0)? codepointCount : 95, FONT_DEFAULT, &font.glyphCount);   // Fork: fontSize, not the rounded baseSize
+        if (font.glyphs != NULL) font.kernings = LoadFontKerningData(fileData, fontSize, font.glyphs, font.glyphCount, &font.kerningCount); // Fork
     }
     else
 #endif
@@ -616,7 +616,7 @@ bool IsFontValid(Font font)
 
 // Load font data for further use
 // NOTE: Requires TTF font memory data and can generate SDF data
-GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSize, const int *codepoints, int codepointCount, int type, int *glyphCount)
+GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, float fontSize, const int *codepoints, int codepointCount, int type, int *glyphCount)
 {
     // NOTE: Using some SDF generation default values,
     // trades off precision with ability to handle *smaller* sizes
@@ -649,6 +649,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
         {
             // Calculate font scale factor
             float scaleFactor = stbtt_ScaleForPixelHeight(&fontInfo, (float)fontSize);
+            int baseSize = (int)(fontSize + 0.5f);  // Fork: fontSize may be fractional, Font.baseSize as in LoadFontFromMemory()
 
             // Calculate font basic metrics
             // NOTE: ascent is equivalent to font baseline
@@ -727,7 +728,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                         glyphs[k].advanceX = (int)((float)glyphs[k].advanceX*scaleFactor + 0.5f);   // Fork: rounded (upstream truncates)
 
                         // WARNING: If requested SDF font, sdf-glyph height is definitely bigger than fontSize due to FONT_SDF_CHAR_PADDING
-                        if ((type != FONT_SDF) && (cpHeight > fontSize)) TRACELOG(LOG_WARNING, "FONT: [0x%04x] Glyph height is bigger than requested font size: %i > %i", cp, cpHeight, (int)fontSize);
+                        if ((type != FONT_SDF) && (cpHeight > baseSize)) TRACELOG(LOG_WARNING, "FONT: [0x%04x] Glyph height is bigger than requested font size: %i > %i", cp, cpHeight, baseSize);   // Fork: baseSize instead of fontSize
 
                         // Load glyph image
                         glyphs[k].image.width = cpWidth;
@@ -764,13 +765,13 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                         Image imSpace = {
                             .data = NULL,
                             .width = glyphs[k].advanceX,
-                            .height = fontSize,
+                            .height = baseSize,     // Fork: baseSize instead of fontSize
                             .mipmaps = 1,
                             .format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE
                         };
 
                         // Only allocate space image if required
-                        if (glyphs[k].advanceX > 0) imSpace.data = RL_CALLOC(glyphs[k].advanceX*fontSize, 1);
+                        if (glyphs[k].advanceX > 0) imSpace.data = RL_CALLOC(glyphs[k].advanceX*baseSize, 1);  // Fork: baseSize instead of fontSize
                         else glyphs[k].advanceX = 0;
 
                         glyphs[k].image = imSpace;
@@ -2642,7 +2643,7 @@ int GetCodepointPrevious(const char *text, int *codepointSize)
 // NOTE: stb_truetype reads the 'kern' table, or only GPOS when the font has one: pair adjustment lookups of 'kern'
 // features, extension lookups included (fork patch), summed over the lookups; only value format x advance is read
 // (kerning with device/variation tables is not found)
-static KerningPair *LoadFontKerningData(const unsigned char *fileData, int fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount)
+static KerningPair *LoadFontKerningData(const unsigned char *fileData, float fontSize, const GlyphInfo *glyphs, int glyphCount, int *kerningCount)
 {
 #ifndef FONT_KERNING_MAX_GLYPHS
     #define FONT_KERNING_MAX_GLYPHS       1024      // Kerning is not loaded for more glyphs (glyphCount^2 lookups, ~100 ns each)

@@ -80,7 +80,6 @@ checked against the SDK with a compile-time sizeof / offsetof test (2026-10-11).
 - `rlEnd` (rlgl.h): depth increment `1/10000` instead of `1/20000`.
 - raymath.h: `RAYMATH_USE_SIMD_INTRINSICS` defaults to 1.
 - config.h: `RL_CULL_DISTANCE_NEAR 0.125`, `RL_CULL_DISTANCE_FAR 2000.0`, `SUPPORT_SCREEN_CAPTURE 0` (no F12 screenshots).
-- rlgl.h: commented-out `// #define RLGL_IMPLEMENTATION` for IntelliSense; must stay commented when building.
 - external/stb_image.h: commented-out "dirty alpha" cleanup experiments in the PNG parser (inactive).
 - external/stb_truetype.h (v1.26 = latest upstream, 2021), `stbtt__GetGlyphGPOSInfoAdvance` + new static
   `stbtt__IsGPOSKernLookup` (2026-10-10, "Fork" comments): only lookups of 'kern' features (any script), extension

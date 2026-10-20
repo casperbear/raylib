@@ -840,7 +840,6 @@ RLAPI void rlLoadDrawQuad(void);     // Load and draw a quad
 *
 ************************************************************************************/
 
-// #define RLGL_IMPLEMENTATION // todo: disable before building
 #if defined(RLGL_IMPLEMENTATION)
 
 // Expose OpenGL functions from glad in raylib

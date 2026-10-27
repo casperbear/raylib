@@ -884,7 +884,8 @@ typedef enum {
     PIXELFORMAT_COMPRESSED_PVRT_RGB,        // 4 bpp
     PIXELFORMAT_COMPRESSED_PVRT_RGBA,       // 4 bpp
     PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA,   // 8 bpp
-    PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA    // 2 bpp
+    PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA,   // 2 bpp
+    PIXELFORMAT_COMPRESSED_BPTC_RGBA        // 8 bpp (BC7; fork, OpenGL 4.3 build only)
 } PixelFormat;
 
 // Texture parameters: filter mode
@@ -1474,6 +1475,8 @@ RLAPI Texture2D LoadTexture(const char *fileName);                              
 RLAPI Texture2D LoadTextureFromImage(Image image);                                                       // Load texture from image data
 RLAPI Texture LoadTextureArrayFromImages(const Image* images, int count);
 RLAPI Texture LoadTextureArrayFromAtlasImage(Image images, int columns, int rows);
+RLAPI Texture LoadTextureArrayFromDDS(const char *fileName);                                            // Load texture array from a DDS file with a DX10 header (BC7, the mip levels it holds)
+RLAPI Texture LoadTextureArrayFromDDSMemory(const unsigned char *fileData, int dataSize);               // Load texture array from DDS file data with a DX10 header (BC7, the mip levels it holds)
 RLAPI TextureCubemap LoadTextureCubemap(Image image, int layout);                                        // Load cubemap from image, multiple image cubemap layouts supported
 RLAPI RenderTexture2D LoadRenderTexture(int width, int height);                                          // Load texture for rendering (framebuffer)
 RLAPI RenderTexture2D LoadRenderTextureEx(int width, int height, int format);                            // Load texture for rendering (framebuffer), with specific format

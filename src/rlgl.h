@@ -477,7 +477,8 @@ typedef enum {
     RL_PIXELFORMAT_COMPRESSED_PVRT_RGB,            // 4 bpp
     RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA,           // 4 bpp
     RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA,       // 8 bpp
-    RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA        // 2 bpp
+    RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA,       // 2 bpp
+    RL_PIXELFORMAT_COMPRESSED_BPTC_RGBA            // 8 bpp (BC7; fork, OpenGL 4.3 build only)
 } rlPixelFormat;
 
 // Texture parameters: filter mode
@@ -761,6 +762,7 @@ RLAPI void rlDrawVertexArrayElementsInstanced(int offset, int count, const void 
 RLAPI unsigned int rlLoadTexture(const void *data, int width, int height, int format, int mipmapCount); // Load texture data
 RLAPI unsigned int rlLoadTextureArray(const void** data, int width, int height, int format, int slices);
 RLAPI unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height, int format, int columns, int rows);
+RLAPI unsigned int rlLoadTextureArrayCompressed(const void *data, int width, int height, int format, int slices, int mipmapCount); // Load compressed texture array data, each slice with its mip levels (OpenGL 4.3 build only)
 RLAPI unsigned int rlLoadTextureDepth(int width, int height, bool useRenderBuffer); // Load depth texture/renderbuffer (to be attached to fbo)
 RLAPI unsigned int rlLoadTextureCubemap(const void *data, int size, int format, int mipmapCount); // Load texture cubemap data
 RLAPI void rlUpdateTexture(unsigned int id, int offsetX, int offsetY, int width, int height, int format, const void *data); // Update texture with new data on GPU
@@ -3678,6 +3680,62 @@ unsigned int rlLoadTextureArrayFromAtlas(const void* data, int width, int height
 #endif
 }
 
+// Load compressed texture array data with its mip levels
+// NOTE: data holds the slices one after another, each with all its mip levels (the DDS array layout);
+// immutable storage (glTexStorage3D) of exactly mipmapCount levels, so the texture is complete without GL_TEXTURE_MAX_LEVEL
+unsigned int rlLoadTextureArrayCompressed(const void *data, int width, int height, int format, int slices, int mipmapCount)
+{
+    unsigned int id = 0;
+
+#if defined(GRAPHICS_API_OPENGL_43)
+    unsigned int glInternalFormat, glFormat, glType;
+    rlGetGlTextureFormats(format, &glInternalFormat, &glFormat, &glType);
+
+    if ((format < RL_PIXELFORMAT_COMPRESSED_DXT1_RGB) || (glInternalFormat == 0) || (data == NULL) || (slices < 1) || (mipmapCount < 1))
+    {
+        TRACELOG(RL_LOG_WARNING, "TEXTURE: Compressed texture array: format %s not supported or no data", rlGetPixelFormatName(format));
+        return 0;
+    }
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0); // Free any old binding
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipmapCount, glInternalFormat, width, height, slices);
+
+    const unsigned char *dataPtr = (const unsigned char *)data;
+    for (int slice = 0; slice < slices; slice++)
+    {
+        int mipWidth = width;
+        int mipHeight = height;
+
+        for (int level = 0; level < mipmapCount; level++)
+        {
+            int mipSize = rlGetPixelDataSize(mipWidth, mipHeight, format); // whole 4x4 blocks
+            glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, level, 0, 0, slice, mipWidth, mipHeight, 1, glInternalFormat, mipSize, dataPtr);
+            dataPtr += mipSize;
+
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+        }
+    }
+
+    // Texture parameters as rlLoadTextureArray sets them (callers set their own)
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    TRACELOG(RL_LOG_INFO, "TEXTURE: [ID %i] Compressed texture array loaded successfully (%ix%ix%i | %s | %i mipmaps)",
+        id, width, height, slices, rlGetPixelFormatName(format), mipmapCount);
+#else
+    TRACELOG(RL_LOG_WARNING, "TEXTURE: Compressed texture arrays need the OpenGL 4.3 build (glTexStorage3D)");
+#endif
+
+    return id;
+}
+
 // Load depth texture/renderbuffer (to be attached to fbo)
 // WARNING: OpenGL ES 2.0 requires GL_OES_depth_texture and WebGL requires WEBGL_depth_texture extensions
 unsigned int rlLoadTextureDepth(int width, int height, bool useRenderBuffer)
@@ -3932,6 +3990,9 @@ void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, unsigned 
         case RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA: if (RLGL.ExtSupported.texCompPVRT) *glInternalFormat = GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG; break;  // NOTE: Requires PowerVR GPU
         case RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA: if (RLGL.ExtSupported.texCompASTC) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_4x4_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
         case RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA: if (RLGL.ExtSupported.texCompASTC) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_8x8_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
+    #endif
+    #if defined(GRAPHICS_API_OPENGL_43)
+        case RL_PIXELFORMAT_COMPRESSED_BPTC_RGBA: *glInternalFormat = GL_COMPRESSED_RGBA_BPTC_UNORM; break;   // NOTE: Core since OpenGL 4.2
     #endif
         default: TRACELOG(RL_LOG_WARNING, "TEXTURE: Current format not supported (%i)", format); break;
     }
@@ -5347,6 +5408,7 @@ const char *rlGetPixelFormatName(unsigned int format)
         case RL_PIXELFORMAT_COMPRESSED_PVRT_RGBA: return "PVRT_RGBA"; break;           // 4 bpp
         case RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA: return "ASTC_4x4_RGBA"; break;   // 8 bpp
         case RL_PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA: return "ASTC_8x8_RGBA"; break;   // 2 bpp
+        case RL_PIXELFORMAT_COMPRESSED_BPTC_RGBA: return "BPTC_RGBA"; break;           // 8 bpp
         default: return "UNKNOWN"; break;
     }
 }
@@ -5621,7 +5683,8 @@ static int rlGetPixelDataSize(int width, int height, int format)
         case RL_PIXELFORMAT_COMPRESSED_DXT3_RGBA:
         case RL_PIXELFORMAT_COMPRESSED_DXT5_RGBA:
         case RL_PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA:
-        case RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA: // 16 bytes per each 4x4 block
+        case RL_PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA:
+        case RL_PIXELFORMAT_COMPRESSED_BPTC_RGBA: // 16 bytes per each 4x4 block
         {
             int blockWidth = (width + 3)/4;
             int blockHeight = (height + 3)/4;

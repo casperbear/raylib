@@ -4658,6 +4658,97 @@ Texture LoadTextureArrayFromAtlasImage(Image atlas, int columns, int rows)
     return texture;
 }
 
+// Load texture array from a DDS file with a DX10 header: one slice per array item, with the mip levels the file holds
+// NOTE: only DXGI_FORMAT_BC7_UNORM so far; needs the OpenGL 4.3 build (rlLoadTextureArrayCompressed)
+Texture LoadTextureArrayFromDDS(const char *fileName)
+{
+    Texture texture = { 0 };
+
+    int dataSize = 0;
+    unsigned char *fileData = LoadFileData(fileName, &dataSize);
+
+    if (fileData != NULL)
+    {
+        texture = LoadTextureArrayFromDDSMemory(fileData, dataSize);
+        UnloadFileData(fileData);
+    }
+
+    return texture;
+}
+
+// Load texture array from DDS file data with a DX10 header (see LoadTextureArrayFromDDS)
+Texture LoadTextureArrayFromDDSMemory(const unsigned char *fileData, int dataSize)
+{
+    Texture texture = { 0 };
+
+    // "DDS ", DDS_HEADER (31 fields) and DDS_HEADER_DXT10 (5 fields): 37 little-endian 32-bit values, then the data
+    unsigned int header[37] = { 0 };
+
+    if ((fileData == NULL) || (dataSize < (int)sizeof(header)))
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: DDS data is not valid");
+        return texture;
+    }
+
+    memcpy(header, fileData, sizeof(header));
+
+    if ((header[0] != 0x20534444) || (header[21] != 0x30315844)) // "DDS ", pixel format FourCC "DX10"
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: DDS data has no DX10 header (texture arrays need one)");
+        return texture;
+    }
+
+    int width = (int)header[4];
+    int height = (int)header[3];
+    int mipmapCount = ((header[2] & 0x20000) && (header[7] > 0))? (int)header[7] : 1; // DDSD_MIPMAPCOUNT
+    unsigned int dxgiFormat = header[32];
+    unsigned int resourceDimension = header[33];
+    unsigned int miscFlag = header[34];
+    int slices = (int)header[35];
+
+    int format = 0;
+    int blockSize = 0;
+    if (dxgiFormat == 98) { format = PIXELFORMAT_COMPRESSED_BPTC_RGBA; blockSize = 16; } // DXGI_FORMAT_BC7_UNORM
+
+    int maxMipmapCount = 1;
+    while (((width >> maxMipmapCount) > 0) || ((height >> maxMipmapCount) > 0)) maxMipmapCount++;
+
+    // 3: D3D10_RESOURCE_DIMENSION_TEXTURE2D, 0x4: D3D10_RESOURCE_MISC_TEXTURECUBE
+    if ((format == 0) || (resourceDimension != 3) || (miscFlag & 0x4) || (width < 1) || (height < 1) || (slices < 1) || (mipmapCount > maxMipmapCount))
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: DDS texture array not supported (DXGI format %u, dimension %u, misc flag %u, %ix%i x%i, %i mipmaps)",
+            dxgiFormat, resourceDimension, miscFlag, width, height, slices, mipmapCount);
+        return texture;
+    }
+
+    long long sliceSize = 0;
+    for (int level = 0, mipWidth = width, mipHeight = height; level < mipmapCount; level++)
+    {
+        sliceSize += (long long)((mipWidth + 3)/4)*((mipHeight + 3)/4)*blockSize; // whole 4x4 blocks
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+    }
+
+    if ((long long)dataSize - (long long)sizeof(header) < sliceSize*slices)
+    {
+        TRACELOG(LOG_WARNING, "TEXTURE: DDS data is truncated (%i bytes, %lld expected)", dataSize, (long long)sizeof(header) + sliceSize*slices);
+        return texture;
+    }
+
+    texture.id = rlLoadTextureArrayCompressed(fileData + sizeof(header), width, height, format, slices, mipmapCount);
+
+    if (texture.id > 0)
+    {
+        texture.width = width;
+        texture.height = height;
+        texture.mipmaps = mipmapCount;
+        texture.format = format;
+        texture.slices = slices;
+    }
+
+    return texture;
+}
+
 // Load cubemap from image, multiple image cubemap layouts supported
 TextureCubemap LoadTextureCubemap(Image image, int layout)
 {
@@ -6022,7 +6113,8 @@ int GetPixelDataSize(int width, int height, int format)
         case PIXELFORMAT_COMPRESSED_DXT3_RGBA:
         case PIXELFORMAT_COMPRESSED_DXT5_RGBA:
         case PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA:
-        case PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA: bpp = 8; break;
+        case PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA:
+        case PIXELFORMAT_COMPRESSED_BPTC_RGBA: bpp = 8; break;
         case PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA: bpp = 2; break;
         default: break;
     }
@@ -6038,7 +6130,7 @@ int GetPixelDataSize(int width, int height, int format)
         if ((width < 4) && (height < 4))
         {
             if ((format >= PIXELFORMAT_COMPRESSED_DXT1_RGB) && (format < PIXELFORMAT_COMPRESSED_DXT3_RGBA)) dataSize = 8;
-            else if ((format >= PIXELFORMAT_COMPRESSED_DXT3_RGBA) && (format < PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA)) dataSize = 16;
+            else if (((format >= PIXELFORMAT_COMPRESSED_DXT3_RGBA) && (format < PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA)) || (format == PIXELFORMAT_COMPRESSED_BPTC_RGBA)) dataSize = 16;
         }
     }
 

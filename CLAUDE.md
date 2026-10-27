@@ -20,11 +20,13 @@ To see everything the fork changes: `git diff upstream/master master -- src`.
    Claude's build (2026-10-08): `MSBuild.exe projects\VS2022\raylib\raylib.vcxproj /p:Configuration=Release
    /p:Platform=x64` (VS2019 MSBuild); built alone, the project writes to `projects\VS2022\raylib\build\raylib\bin\x64\Release`
    (gitignored; the human's .sln build uses `projects\VS2022\build`). Runtime: /MT (LIBCMT), as before.
+4. `projects\VS2022\raylib\raylib.vcxproj` defines `GRAPHICS_API_OPENGL_43` in every configuration (fork, 2026-10-27;
+   upstream: `_33`): keep it if upstream touches those lines. MixMage's own project defines it too.
 
 ## Fork-only API (texture arrays and mipmap control)
 
 `Texture.slices`: 0 = ordinary 2D texture, > 0 = `GL_TEXTURE_2D_ARRAY` with that many layers.
-Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
+Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1 (compressed arrays: GL 4.3 build).
 
 | Fork function | File | Copied/derived from upstream |
 |---|---|---|
@@ -41,6 +43,14 @@ Requires GL 3.3 / ES 3; the functions warn and return 0 on GL 1.1 / 2.1.
 | `GenTextureArrayMipmaps`, `GenTextureMipmapsEx`, `GenTextureArrayMipmapsEx` | rtextures.c | `GenTextureMipmaps` |
 | `SetTextureArrayFilter(texture, filter)` | rtextures.c | `SetTextureFilter` |
 | `SetTextureArrayWrap(texture, wrap)` | rtextures.c | `SetTextureWrap` |
+| `rlLoadTextureArrayCompressed(data, w, h, format, slices, mipmapCount)` | rlgl.h | new (2026-10-27): `glTexStorage3D` (immutable, exactly mipmapCount levels) + `glCompressedTexSubImage3D` per slice and level; data = the slices one after another, each with all its levels (DDS array layout); GL 4.3 build only |
+| `LoadTextureArrayFromDDS(fileName)`, `LoadTextureArrayFromDDSMemory(data, size)` | rtextures.c | new (2026-10-27): DDS with a DX10 header, `DXGI_FORMAT_BC7_UNORM` (98) 2D arrays only, the file's mip levels; size and level count validated |
+
+`PIXELFORMAT_COMPRESSED_BPTC_RGBA` / `RL_PIXELFORMAT_COMPRESSED_BPTC_RGBA` (BC7, 2026-10-27) is appended LAST to both pixel
+format enums, so upstream values and the `>= COMPRESSED_DXT1_RGB` "compressed" checks keep working. Upstream functions that
+learned it: `rlGetGlTextureFormats` (`GL_COMPRESSED_RGBA_BPTC_UNORM`, `GRAPHICS_API_OPENGL_43` only), `rlGetPixelFormatName`,
+`rlGetPixelDataSize` (16-byte blocks), `GetPixelDataSize` (8 bpp, 16-byte minimum). rltexgpu.h (raylib's compressed-texture
+file loaders) knows nothing of DX10 headers or BC7.
 
 ## Fork-only API (kerning, 2026-10-08)
 
